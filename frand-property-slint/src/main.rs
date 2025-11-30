@@ -1,6 +1,6 @@
 slint::include_modules!();
 
-use frand_transceiver::*;
+use frand_property::*;
 
 /*
 slint_model! {
