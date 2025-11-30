@@ -3,5 +3,10 @@ name = "frand-transceiver"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = [ "slint" ]
+slint = []
+
 [dependencies]
-tokio = { version = "1.42", features = ["sync"] }
+tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "sync"] }
+async-trait = "0.1"

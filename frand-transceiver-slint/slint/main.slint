@@ -1,5 +1,11 @@
-export component Main inherits Window {
+import { ScreenData, Screen } from "screen/screen.slint";
+
+export { ScreenData }
+
+export component MainWindow inherits Window {
     title: "Transceiver";
     min-width: 300px;
     min-height: 200px;
+
+    Screen {}
 }

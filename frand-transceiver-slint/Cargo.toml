@@ -3,9 +3,11 @@ name = "frand-transceiver-slint"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
-slint = "1.14"
-
 [build-dependencies]
 slint-build = "1.14"
 
+[dependencies]
+frand-transceiver = { path = ".." }
+slint = "1.14"
+paste = "1.0"
+tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "time"] }

@@ -1,0 +1,28 @@
+import { StartScreen } from "start.slint";
+import { PayScreen } from "pay.slint";
+
+export enum ScreenVariant {
+    Start,
+    Pay
+}
+
+export global ScreenData {
+    in property <ScreenVariant> current-screen;
+
+    callback changed-current-screen(current-screen: ScreenVariant);
+}
+
+component ScreenSystem {
+    property <ScreenVariant> current-screen: ScreenData.current-screen;
+
+    changed current-screen => {
+        ScreenData.changed-current-screen(current-screen)
+    }
+}
+
+export component Screen inherits Rectangle {
+    ScreenSystem {}
+
+    if ScreenData.current-screen == ScreenVariant.Start: StartScreen {}
+    if ScreenData.current-screen == ScreenVariant.Pay: PayScreen {}
+}
