@@ -1,5 +1,19 @@
+import { Button, VerticalBox } from "std-widgets.slint";
+
 export component StartScreen inherits Rectangle {
-    Text {
-        text: "Start Screen";
+    callback on-confirm();
+    
+    VerticalBox {    
+        Text {
+            text: "Start Screen";
+        }    
+        
+        Button {
+            text: "Confirm";
+            
+            clicked => {
+                root.on-confirm();
+            }
+        }
     }
 }

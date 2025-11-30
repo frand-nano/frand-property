@@ -1,5 +1,19 @@
+import { Button, VerticalBox } from "std-widgets.slint";
+
 export component PayScreen inherits Rectangle {
-    Text {
-        text: "Pay Screen";
+    callback on-cancel();
+
+    VerticalBox {
+        Text {
+            text: "Pay Screen";
+        }
+
+        Button {
+            text: "Cancel";
+
+            clicked => {
+                root.on-cancel();
+            }
+        }
     }
 }
