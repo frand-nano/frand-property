@@ -10,3 +10,7 @@ slint = []
 [dependencies]
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "sync"] }
 async-trait = "0.1"
+frand-property-macro = { path = "frand-property-macro" }
+
+[workspace]
+members = ["frand-property-macro", "frand-property-slint"]

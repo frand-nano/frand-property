@@ -9,5 +9,4 @@ slint-build = "1.14"
 [dependencies]
 frand-property = { path = ".." }
 slint = "1.14"
-paste = "1.0"
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "time"] }

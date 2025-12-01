@@ -49,7 +49,7 @@ pub trait ReceiverExt<T: Copy + Send + Sync> {
 #[async_trait]
 impl<T: Copy + Send + Sync> ReceiverExt<T> for Receiver<T> {
     async fn changed(&mut self) -> T {
-        self.receiver.changed().await.unwrap(); // TODO: Error handling
+        self.receiver.changed().await.unwrap(); // TODO: 에러 처리
         
         *self.receiver.borrow()
     }
@@ -62,7 +62,7 @@ pub trait SenderExt<T: Copy + Send + Sync> {
 impl<C, T: Copy + Send + Sync + PartialEq> SenderExt<T> for Sender<C, T> {
     fn send(&self, value: T) {
         (self.set)(&self.component, value);
-        self.sender.send(value).unwrap(); // TODO: Error handling
+        self.sender.send(value).unwrap(); // TODO: 에러 처리
     }
 }
 
