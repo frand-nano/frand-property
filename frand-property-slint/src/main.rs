@@ -3,7 +3,7 @@ slint::include_modules!();
 use frand_property::*;
 
 slint_model! {
-    ScreenModel: ScreenData<MainWindow> {
+    ScreenModel: ScreenData {
         current_screen: ScreenVariant,
         confirm_start: (),
         cancel_pay: (),
@@ -13,7 +13,7 @@ slint_model! {
 #[tokio::main]
 async fn main() {
     let window = MainWindow::new().unwrap(); // TODO: 에러 처리
-    let screen_model = ScreenModel::new(&window);
+    let screen_model = ScreenModel::<MainWindow>::new(&window);
 
     tokio::spawn(async move {
         let mut confirm_start = screen_model.confirm_start.receiver().clone();
