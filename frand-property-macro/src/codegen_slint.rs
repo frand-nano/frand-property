@@ -15,24 +15,25 @@ pub fn generate(input: &SlintModel) -> String {
         let slint_type = rust_type_to_slint_type(&field.ty);
         
         match field.direction {
+
             Direction::Out => {
                 screen_data_lines.push(format!("    in property <{}> {};", slint_type, kebab_name));
-                screen_data_lines.push(format!("    callback changed-{}({}: {});", kebab_name, kebab_name, slint_type));
-                
-                screen_system_lines.push(format!("    property <{}> {}: {}.{};", slint_type, kebab_name, global_name, kebab_name));
-                screen_system_lines.push(format!("    changed {} => {{", kebab_name));
-                screen_system_lines.push(format!("        {}.changed-{}({})", global_name, kebab_name, kebab_name));
-                screen_system_lines.push(format!("    }}"));
             }
             Direction::In => {
                 if slint_type == "void" {
                     screen_data_lines.push(format!("    callback {}();", kebab_name));
                 } else {
-                    screen_data_lines.push(format!("    callback {}({});", kebab_name, slint_type));
+                    screen_data_lines.push(format!("    property <{}> {};", slint_type, kebab_name));
+                    screen_data_lines.push(format!("    callback changed-{}({}: {});", kebab_name, kebab_name, slint_type));
+                    
+                    screen_system_lines.push(format!("    property <{}> {}: {}.{};", slint_type, kebab_name, global_name, kebab_name));
+                    screen_system_lines.push(format!("    changed {} => {{", kebab_name));
+                    screen_system_lines.push(format!("        {}.changed-{}({})", global_name, kebab_name, kebab_name));
+                    screen_system_lines.push(format!("    }}"));
                 }
             }
             Direction::InOut => {
-                screen_data_lines.push(format!("    property <{}> {};", slint_type, kebab_name));
+                screen_data_lines.push(format!("    in property <{}> {};", slint_type, kebab_name));
                 screen_data_lines.push(format!("    callback changed-{}({}: {});", kebab_name, kebab_name, slint_type));
                 
                 screen_system_lines.push(format!("    property <{}> {}: {}.{};", slint_type, kebab_name, global_name, kebab_name));
