@@ -1,4 +1,5 @@
 use proc_macro::TokenStream;
+use proc_macro_error::{abort, proc_macro_error};
 use quote::{format_ident, quote};
 use syn::{
     parse::{Parse, ParseStream},
@@ -6,6 +7,13 @@ use syn::{
     punctuated::Punctuated,
     token, Ident, Token, Type, Visibility,
 };
+
+#[derive(PartialEq)]
+enum Direction {
+    In,
+    Out,
+    InOut,
+}
 
 struct SlintModel {
     vis: Visibility,
@@ -18,6 +26,7 @@ struct SlintModel {
 
 struct SlintModelField {
     vis: Visibility,
+    direction: Direction,
     name: Ident,
     _colon_token: Token![:],
     ty: Type,
@@ -39,8 +48,36 @@ impl Parse for SlintModel {
 
 impl Parse for SlintModelField {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let vis: Visibility = input.parse()?;
+        
+        let direction = if input.peek(Token![in]) {
+            input.parse::<Token![in]>()?;
+            if input.peek(Token![-]) {
+                input.parse::<Token![-]>()?;
+                let out_kw: Ident = input.parse()?;
+                if out_kw != "out" {
+                    return Err(syn::Error::new(out_kw.span(), "expected `out` after `in-`"));
+                }
+                Direction::InOut
+            } else {
+                Direction::In
+            }
+        } else if input.peek(Ident) {
+             let fork = input.fork();
+             let ident: Ident = fork.parse()?;
+             if ident == "out" {
+                 input.parse::<Ident>()?;
+                 Direction::Out
+             } else {
+                 return Err(syn::Error::new(ident.span(), "expected `in`, `out` or `in-out`"));
+             }
+        } else {
+             return Err(input.error("expected `in`, `out` or `in-out`"));
+        };
+
         Ok(SlintModelField {
-            vis: input.parse()?,
+            vis,
+            direction,
             name: input.parse()?,
             _colon_token: input.parse()?,
             ty: input.parse()?,
@@ -49,6 +86,7 @@ impl Parse for SlintModelField {
 }
 
 #[proc_macro]
+#[proc_macro_error]
 pub fn slint_model(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as SlintModel);
 
@@ -82,6 +120,7 @@ pub fn slint_model(input: TokenStream) -> TokenStream {
     let field_inits = input.fields.iter().map(|f| {
         let f_name = &f.name;
         let f_ty = &f.ty;
+        let direction = &f.direction;
 
         let is_unit = if let Type::Tuple(t) = f_ty {
             t.elems.is_empty()
@@ -89,59 +128,80 @@ pub fn slint_model(input: TokenStream) -> TokenStream {
             false
         };
 
-        if is_unit {
-            quote! {
-                let #f_name = Property::new(
-                    weak.clone(),
-                    (),
-                    |_, _| {},
-                );
-            }
-        } else {
-            let set_ident = format_ident!("set_{}", f_name);
-            quote! {
-                let #f_name = Property::new(
-                    weak.clone(),
-                    Default::default(),
+        // () 타입인데 Out 또는 InOut이면 에러
+        if is_unit && (*direction == Direction::Out || *direction == Direction::InOut) {
+            abort!(f_name, "`()` type cannot be used with `out` or `in-out` direction");
+        }
+
+        let setter = if *direction == Direction::Out || *direction == Direction::InOut {
+             if is_unit {
+                 // 위에서 걸러지지만 안전을 위해
+                 quote! { |_, _| {} }
+             } else {
+                 let set_ident = format_ident!("set_{}", f_name);
+                 quote! {
                     |c, v| {
                         c.upgrade_in_event_loop(move |c| {
                             c.global::<#type_name>().#set_ident(v)
                         }).unwrap() // TODO: 에러 처리
-                    },
-                );
-            }
+                    }
+                 }
+             }
+        } else {
+            // In 방향이면 setter는 아무것도 안 함
+            quote! { |_, _| {} }
+        };
+
+        quote! {
+            let #f_name = Property::new(
+                weak.clone(),
+                Default::default(),
+                #setter,
+            );
         }
     });
 
     let sender_defs = input.fields.iter().map(|f| {
         let f_name = &f.name;
+        let direction = &f.direction;
         let sender_name = format_ident!("{}_sender", f_name);
-        quote! {
-            let #sender_name = #f_name.sender().clone();
+        
+        // Out 방향이면 sender를 생성하지 않음 (Warning 해결)
+        if *direction == Direction::Out {
+            quote! {}
+        } else {
+            quote! {
+                let #sender_name = #f_name.sender().clone();
+            }
         }
     });
 
     let bindings = input.fields.iter().map(|f| {
         let f_name = &f.name;
         let f_ty = &f.ty;
+        let direction = &f.direction;
         let sender_name = format_ident!("{}_sender", f_name);
 
-        let is_unit = if let Type::Tuple(t) = f_ty {
-            t.elems.is_empty()
-        } else {
-            false
-        };
+        if *direction == Direction::In || *direction == Direction::InOut {
+            let is_unit = if let Type::Tuple(t) = f_ty {
+                t.elems.is_empty()
+            } else {
+                false
+            };
 
-        if is_unit {
-            let on_ident = format_ident!("on_{}", f_name);
-            quote! {
-                component.global::<#type_name>().#on_ident(move || #sender_name.send(()));
+            if is_unit {
+                let on_ident = format_ident!("on_{}", f_name);
+                quote! {
+                    component.global::<#type_name>().#on_ident(move || #sender_name.send(()));
+                }
+            } else {
+                let on_changed_ident = format_ident!("on_changed_{}", f_name);
+                quote! {
+                    component.global::<#type_name>().#on_changed_ident(move |v| #sender_name.send(v));
+                }
             }
         } else {
-            let on_changed_ident = format_ident!("on_changed_{}", f_name);
-            quote! {
-                component.global::<#type_name>().#on_changed_ident(move |v| #sender_name.send(v));
-            }
+            quote! {}
         }
     });
 

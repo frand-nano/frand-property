@@ -4,9 +4,9 @@ use frand_property::*;
 
 slint_model! {
     ScreenModel: ScreenData {
-        current_screen: ScreenVariant,
-        confirm_start: (),
-        cancel_pay: (),
+        out current_screen: ScreenVariant,
+        in confirm_start: (),
+        in cancel_pay: (),
     }
 }
 
