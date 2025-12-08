@@ -1,7 +1,14 @@
+[workspace]
+members = ["frand-property-macro", "frand-property-slint"]
+package.version = "0.1.1"
+package.edition = "2024"
+package.authors = ["frand-nano <frand.nano@gmail.com>"]
+
 [package]
 name = "frand-property"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 
 [features]
 default = [ "slint" ]
@@ -11,6 +18,3 @@ slint = []
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "sync"] }
 async-trait = "0.1"
 frand-property-macro = { path = "frand-property-macro" }
-
-[workspace]
-members = ["frand-property-macro", "frand-property-slint"]
