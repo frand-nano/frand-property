@@ -9,21 +9,19 @@ export enum ScreenVariant {
 export global ScreenData {
     in property <ScreenVariant> current-screen;
     callback changed-current-screen(current-screen: ScreenVariant);
-
     callback confirm-start();
-    callback cancel-pay();    
+    callback cancel-pay();
 }
 
-component ScreenSystem {
+component ScreenDataSystem {
     property <ScreenVariant> current-screen: ScreenData.current-screen;
-
     changed current-screen => {
         ScreenData.changed-current-screen(current-screen)
     }
 }
 
 export component Screen inherits Rectangle {
-    ScreenSystem {}
+    ScreenDataSystem {}
 
     if ScreenData.current-screen == ScreenVariant.Start: StartScreen {
         on-confirm => { ScreenData.confirm-start() }
