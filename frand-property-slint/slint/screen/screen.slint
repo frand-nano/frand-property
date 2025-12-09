@@ -12,13 +12,7 @@ export global ScreenData {
     callback cancel-pay();
 }
 
-component ScreenDataSystem {
-
-}
-
 export component Screen inherits Rectangle {
-    ScreenDataSystem {}
-
     if ScreenData.current-screen == ScreenVariant.Start: StartScreen {
         on-confirm => { ScreenData.confirm-start() }
     }
