@@ -12,17 +12,23 @@
 
 ```rust
 use frand_property::slint_model;
+// Slint에서 생성된 구조체 (예: AdderData)
+use crate::AdderData;
 
 slint_model! {
-    MyModel: MyData {
-        out status_message: String,
-        in on_click: (),
+    pub AdderModel: AdderData {
+        in x: i32,         // Slint -> Rust (입력)
+        out sum: i32,      // Rust -> Slint (출력)
+        in-out data: i32,  // 양방향 동기화
     }
 }
 ```
 
-- `out`: Rust에서 Slint로 흐르는 속성(상태)을 정의합니다.
-- `in`: Slint에서 Rust로 흐르는 콜백이나 신호(이벤트)를 정의합니다.
+- `in`: Slint UI에서 값이 변경되면 Rust 모델에 알림(`changed()`)을 보냅니다.
+- `out`: Rust 모델에서 값을 변경하여 Slint UI로 전송(`send()`)합니다.
+- `in-out`: 양방향 동기화를 지원합니다.
+
+`pub` 키워드를 사용하여 생성된 모델 구조체의 가시성을 제어할 수 있습니다.
 
 ## 라이선스
 

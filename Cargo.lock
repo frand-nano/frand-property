@@ -1536,7 +1536,7 @@ dependencies = [
 
 [[package]]
 name = "frand-property"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "frand-property-macro",
  "tokio",
@@ -1544,7 +1544,7 @@ dependencies = [
 
 [[package]]
 name = "frand-property-macro"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
@@ -1554,7 +1554,7 @@ dependencies = [
 
 [[package]]
 name = "frand-property-slint"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "frand-property",
  "slint",
