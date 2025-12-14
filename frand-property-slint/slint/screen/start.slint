@@ -1,16 +1,21 @@
 import { Button, VerticalBox } from "std-widgets.slint";
+import { Adder, AdderDataSystem } from "../components/adder.slint";
 
 export component StartScreen inherits Rectangle {
     callback on-confirm();
-    
-    VerticalBox {    
+    AdderDataSystem { } // Must be instantiated to forward events
+
+    VerticalBox {
         Text {
             text: "Start Screen";
-        }    
-        
+            font-size: 24px;
+            horizontal-alignment: center;
+        }
+
+        Adder { }
+
         Button {
             text: "Confirm";
-            
             clicked => {
                 root.on-confirm();
             }
