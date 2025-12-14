@@ -8,7 +8,7 @@ export global AdderData {
     in property <int> sum;
 }
 
-component AdderDataSystem {
+export component AdderDataSystem {
     property <int> system-x: AdderData.x;
     changed system-x => {
         AdderData.changed-x(system-x)

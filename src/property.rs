@@ -2,16 +2,25 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tokio::sync::watch;
 
-pub struct Property<C, T: Copy + Send + Sync + PartialEq> {
+pub struct Property<C, T> {
     sender: Sender<C, T>,
     receiver: Receiver<T>,
 }
 
-#[derive(Clone)]
 pub struct Sender<C, T> {
     component: Arc<C>,
     sender: watch::Sender<T>,
     set: fn(&C, T),
+}
+
+impl<C, T> Clone for Sender<C, T> {
+    fn clone(&self) -> Self {
+        Self {
+            component: self.component.clone(),
+            sender: self.sender.clone(),
+            set: self.set,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -19,7 +28,7 @@ pub struct Receiver<T> {
     receiver: watch::Receiver<T>,
 }
 
-impl<C, T: Copy + Send + Sync + PartialEq> Property<C, T> {
+impl<C, T> Property<C, T> {
     pub fn sender(&self) -> &Sender<C, T> { &self.sender }
     pub fn receiver(&self) -> &Receiver<T> { &self.receiver }
 
@@ -27,7 +36,7 @@ impl<C, T: Copy + Send + Sync + PartialEq> Property<C, T> {
         component: Arc<C>,
         initial_value: T,
         set: fn(&C, T),
-    ) -> Self {
+    ) -> Self where T: Copy + Send + Sync {
         let channel = watch::channel(initial_value);
 
         Self {
@@ -43,15 +52,20 @@ impl<C, T: Copy + Send + Sync + PartialEq> Property<C, T> {
 
 #[async_trait]
 pub trait ReceiverExt<T: Copy + Send + Sync> {
+    fn value(&self) -> T;
     async fn changed(&mut self) -> T;
 }
 
 #[async_trait]
 impl<T: Copy + Send + Sync> ReceiverExt<T> for Receiver<T> {
+    fn value(&self) -> T {
+        *self.receiver.borrow()
+    }
+
     async fn changed(&mut self) -> T {
         self.receiver.changed().await.unwrap(); // TODO: 에러 처리
         
-        *self.receiver.borrow()
+        self.value()
     }
 }
 

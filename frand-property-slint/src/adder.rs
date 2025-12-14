@@ -1,7 +1,5 @@
-use crate::{AdderData, MainWindow};
-use frand_property::slint_model;
 use frand_property::*;
-use slint::ComponentHandle;
+use crate::AdderData;
 
 slint_model! {
     pub AdderModel: AdderData {
@@ -11,26 +9,23 @@ slint_model! {
     }
 }
 
-pub fn run(window: &MainWindow) {
-    let adder_model = AdderModel::<MainWindow>::new(window);
+impl<C: slint::ComponentHandle + 'static> System for AdderModel<C> {
+    fn start_system(&self) {
+        let mut x = self.x.receiver().clone();
+        let mut y = self.y.receiver().clone();
+        let sum = self.sum.sender().clone();
 
-    tokio::spawn(async move {
-        let mut x_rx = adder_model.x.receiver().clone();
-        let mut y_rx = adder_model.y.receiver().clone();
-
-        let mut x = 0;
-        let mut y = 0;
-
-        loop {
-            tokio::select! {
-                new_x = x_rx.changed() => {
-                    x = new_x;
-                }
-                new_y = y_rx.changed() => {
-                    y = new_y;
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    x = x.changed() => {
+                        sum.send(x + y.value());
+                    }
+                    y = y.changed() => {
+                        sum.send(x.value() + y);
+                    }
                 }
             }
-            adder_model.sum.send(x + y);
-        }
-    });
+        });
+    }
 }
