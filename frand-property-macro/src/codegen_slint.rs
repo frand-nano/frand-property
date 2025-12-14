@@ -22,12 +22,12 @@ pub fn generate(input: &SlintModel) -> String {
             }
             Direction::In => {
                 if slint_type == "void" {
-                    data_lines.push(
-                        format!("    callback {}();", kebab_name)
+                     data_lines.push(
+                        format!("    callback {kebab_name}();")
                     );
                 } else {
                     data_lines.push(
-                        format!("    property <{slint_type}> {kebab_name};")
+                        format!("    in-out property <{slint_type}> {kebab_name};")
                     );
 
                     data_lines.push(
@@ -37,7 +37,7 @@ pub fn generate(input: &SlintModel) -> String {
             }
             Direction::InOut => {
                 data_lines.push(
-                    format!("    in property <{slint_type}> {kebab_name};")
+                    format!("    in-out property <{slint_type}> {kebab_name};")
                 );
 
                 data_lines.push(
@@ -45,6 +45,8 @@ pub fn generate(input: &SlintModel) -> String {
                 );
             }
         }
+
+        let system_prop_name = format!("system-{}", kebab_name);
 
         match field.direction {
             Direction::Out => {
@@ -55,15 +57,15 @@ pub fn generate(input: &SlintModel) -> String {
 
                 } else {
                     system_lines.push(
-                        format!("    property <{slint_type}> {kebab_name}: {global_name}.{kebab_name};")
+                        format!("    property <{slint_type}> {system_prop_name}: {global_name}.{kebab_name};")
                     );
 
                     system_lines.push(
-                        format!("    changed {kebab_name} => {{")
+                        format!("    changed {system_prop_name} => {{")
                     );
 
                     system_lines.push(
-                        format!("        {global_name}.changed-{kebab_name}({kebab_name})")
+                        format!("        {global_name}.changed-{kebab_name}({system_prop_name})")
                     );
 
                     system_lines.push(
@@ -73,15 +75,15 @@ pub fn generate(input: &SlintModel) -> String {
             }
             Direction::InOut => {
                 system_lines.push(
-                    format!("    property <{slint_type}> {kebab_name}: {global_name}.{kebab_name};")
+                    format!("    property <{slint_type}> {system_prop_name}: {global_name}.{kebab_name};")
                 );
 
                 system_lines.push(
-                    format!("    changed {kebab_name} => {{")
+                    format!("    changed {system_prop_name} => {{")
                 );
 
                 system_lines.push(
-                    format!("        {global_name}.changed-{kebab_name}({kebab_name})")
+                    format!("        {global_name}.changed-{kebab_name}({system_prop_name})")
                 );
 
                 system_lines.push(
@@ -100,7 +102,7 @@ pub fn generate(input: &SlintModel) -> String {
         format!(" 생성된 Slint 코드:\n```slint\n{data_doc}\n```")
     } else {
         let system_doc = format!(
-            "component {} {{\n{}\n}}",
+            "export component {} {{\n{}\n}}",
             system_name,
             system_lines.join("\n")
         );

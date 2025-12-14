@@ -1,21 +1,21 @@
 import { Button, VerticalBox, HorizontalBox } from "std-widgets.slint";
 
 export global AdderData {
-    in-out property <int> x: 0;
-    in-out property <int> y: 0;
-    in property <int> sum: 0;
-    callback changed-x(int);
-    callback changed-y(int);
+    in-out property <int> x;
+    callback changed-x(x: int);
+    in-out property <int> y;
+    callback changed-y(y: int);
+    in property <int> sum;
 }
 
-export component AdderDataSystem {
-    property <int> data-x: AdderData.x;
-    property <int> data-y: AdderData.y;
-    changed data-x => {
-        AdderData.changed-x(data-x);
+component AdderDataSystem {
+    property <int> system-x: AdderData.x;
+    changed system-x => {
+        AdderData.changed-x(system-x)
     }
-    changed data-y => {
-        AdderData.changed-y(data-y);
+    property <int> system-y: AdderData.y;
+    changed system-y => {
+        AdderData.changed-y(system-y)
     }
 }
 
