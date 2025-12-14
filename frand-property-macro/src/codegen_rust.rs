@@ -139,7 +139,7 @@ fn generate_bindings(input: &SlintModel, type_name: &syn::Ident) -> Vec<TokenStr
             if is_unit {
                 let on_ident = format_ident!("on_{}", f_name);
                 quote! {
-                    component.global::<#type_name>().#on_ident(move || #sender_name.send(()));
+                    component.global::<#type_name>().#on_ident(move || #sender_name.notify());
                 }
             } else {
                 let on_changed_ident = format_ident!("on_changed_{}", f_name);

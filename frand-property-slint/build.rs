@@ -1,5 +1,5 @@
 use slint_build;
-
-fn main() {
-    slint_build::compile("slint/main.slint").unwrap(); // TODO: Error handling
+    
+fn main() -> Result<(), slint_build::CompileError> {
+    slint_build::compile("slint/main.slint")
 }

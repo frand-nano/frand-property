@@ -20,11 +20,11 @@ impl<C: slint::ComponentHandle + 'static> System for ScreenModel<C> {
             loop {
                 current_screen.send(ScreenVariant::Start);
 
-                confirm_start.changed().await;
+                confirm_start.notified().await;
 
                 current_screen.send(ScreenVariant::Pay);
 
-                cancel_pay.changed().await;
+                cancel_pay.notified().await;
             }
         });
     }

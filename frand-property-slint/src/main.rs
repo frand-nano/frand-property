@@ -8,14 +8,15 @@ use crate::adder::AdderModel;
 use crate::screen::ScreenModel;
 
 #[tokio::main]
-async fn main() {
-    let window = MainWindow::new().unwrap(); // TODO: 에러 처리
-    
+async fn main() -> Result<(), slint::PlatformError> {
+    let window = MainWindow::new()?;
+
     let screen_model = ScreenModel::<MainWindow>::new(&window);
     screen_model.start_system();
-    
+
     let adder_model = AdderModel::<MainWindow>::new(&window);
     adder_model.start_system();
 
-    window.run().unwrap(); // TODO: 에러 처리
+    window.run()?;
+    Ok(())
 }
