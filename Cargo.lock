@@ -1538,7 +1538,6 @@ dependencies = [
 name = "frand-property"
 version = "0.1.1"
 dependencies = [
- "async-trait",
  "frand-property-macro",
  "tokio",
 ]

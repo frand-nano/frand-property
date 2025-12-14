@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use async_trait::async_trait;
 use tokio::sync::watch;
 
 pub struct Property<C, T> {
@@ -57,20 +56,12 @@ impl<C, T> Property<C, T> {
     }
 }
 
-#[async_trait]
-pub trait ReceiverExt<T: Copy + Send + Sync> {
-    fn value(&self) -> T;
-    async fn changed(&mut self) -> T where T: PartialEq;
-    async fn notified(&mut self) -> T;
-}
-
-#[async_trait]
-impl<T: Copy + Send + Sync> ReceiverExt<T> for Receiver<T> {
-    fn value(&self) -> T {
+impl<T> Receiver<T> {
+    pub fn value(&self) -> T where T: Copy {
         *self.receiver.borrow()
     }
 
-    async fn changed(&mut self) -> T where T: PartialEq {
+    pub async fn changed(&mut self) -> T where T: Copy + PartialEq {
         let last_value = self.value();
 
         *self.receiver
@@ -81,7 +72,7 @@ impl<T: Copy + Send + Sync> ReceiverExt<T> for Receiver<T> {
             )
     }
 
-    async fn notified(&mut self) -> T {
+    pub async fn notified(&mut self) -> T where T: Copy {
         self.receiver
             .changed().await
             .unwrap_or_else(|_|
@@ -93,13 +84,8 @@ impl<T: Copy + Send + Sync> ReceiverExt<T> for Receiver<T> {
     }
 }
 
-pub trait SenderExt<T: Copy + Send + Sync> {
-    fn send(&self, value: T) where T: PartialEq;
-    fn notify(&self);
-}
-
-impl<C, T: Copy + Send + Sync> SenderExt<T> for Sender<C, T> {
-    fn send(&self, value: T) where T: PartialEq {
+impl<C, T> Sender<C, T> {
+    pub fn send(&self, value: T) where T: Copy + PartialEq {
         let current_value = *self.receiver.borrow();
 
         if value == current_value { return; }
@@ -113,7 +99,7 @@ impl<C, T: Copy + Send + Sync> SenderExt<T> for Sender<C, T> {
             );
     }
 
-    fn notify(&self) {
+    pub fn notify(&self) where T: Copy {
         let value = *self.receiver.borrow();
 
         (self.set)(&self.component, value);
@@ -126,12 +112,24 @@ impl<C, T: Copy + Send + Sync> SenderExt<T> for Sender<C, T> {
     }
 }
 
-impl<C, T: Copy + Send + Sync> SenderExt<T> for Property<C, T> {
-    fn send(&self, value: T) where T: PartialEq {
+impl<C, T> Property<C, T> {
+    pub fn value(&self) -> T where T: Copy {
+        self.receiver.value()
+    }
+
+    pub async fn changed(&self) -> T where T: Copy + PartialEq {
+        self.receiver.clone().changed().await
+    }
+
+    pub async fn notified(&self) -> T where T: Copy {
+        self.receiver.clone().notified().await
+    }
+
+    pub fn send(&self, value: T) where T: Copy + PartialEq {
         self.sender.send(value)
     }
 
-    fn notify(&self) {
+    pub fn notify(&self) where T: Copy {
         self.sender.notify()
     }
 }
