@@ -45,11 +45,18 @@ fn generate_field_defs(input: &SlintModel) -> Vec<TokenStream> {
         let f_vis = &f.vis;
         let f_name = &f.name;
         let f_ty = &f.ty;
+        let direction = &f.direction;
 
         if let Type::Array(arr) = f_ty {
             let elem_ty = &arr.elem;
-            quote! {
-                #f_vis #f_name: Vec<Property<slint::Weak<C>, #elem_ty>>
+            if *direction == Direction::Out {
+                quote! {
+                    #f_vis #f_name: Vec<Sender<slint::Weak<C>, #elem_ty>>
+                }
+            } else {
+                 quote! {
+                    #f_vis #f_name: Vec<Receiver<#elem_ty>>
+                }
             }
         } else {
              let is_unit = if let Type::Tuple(t) = f_ty {
@@ -59,12 +66,24 @@ fn generate_field_defs(input: &SlintModel) -> Vec<TokenStream> {
             };
 
             if is_unit {
-                quote! {
-                    #f_vis #f_name: Property<slint::Weak<C>, ()>
+                if *direction == Direction::Out {
+                     quote! {
+                        #f_vis #f_name: Sender<slint::Weak<C>, ()>
+                    }
+                } else {
+                     quote! {
+                        #f_vis #f_name: Receiver<()>
+                    }
                 }
             } else {
-                quote! {
-                    #f_vis #f_name: Property<slint::Weak<C>, #f_ty>
+                if *direction == Direction::Out {
+                    quote! {
+                        #f_vis #f_name: Sender<slint::Weak<C>, #f_ty>
+                    }
+                } else {
+                    quote! {
+                        #f_vis #f_name: Receiver<#f_ty>
+                    }
                 }
             }
         }
@@ -74,49 +93,74 @@ fn generate_field_defs(input: &SlintModel) -> Vec<TokenStream> {
 fn generate_field_inits(input: &SlintModel, type_name: &syn::Ident) -> Vec<TokenStream> {
     input.fields.iter().map(|f| {
         let f_name = &f.name;
+        let f_prop_ident = format_ident!("{}_prop", f_name);
         let f_ty = &f.ty;
         let direction = &f.direction;
 
         if let Type::Array(arr) = f_ty {
-             let len = &arr.len;
-             let set_global_ident = format_ident!("set_{}", f_name);
+            let len = &arr.len;
+            let set_global_ident = format_ident!("set_{}", f_name);
 
-             let setter = if *direction == Direction::Out || *direction == Direction::InOut {
-                 let get_ident = format_ident!("get_{}", f_name);
-
-                 quote! {
-                     move |c, v| {
+            if *direction == Direction::Out {
+                let get_ident = format_ident!("get_{}", f_name);
+                let setter = quote! {
+                    move |c, v| {
                         c.upgrade_in_event_loop(move |c| {
                             c.global::<#type_name>().#get_ident().set_row_data(_index, v);
                         }).unwrap()
                     }
-                 }
-             } else {
-                 quote! { move |_, _| {} }
-             };
+                };
 
-             quote! {
-                let #f_name = (0..#len).map(|_index| {
-                    Property::new(
-                        weak.clone(),
-                        Default::default(),
-                        #setter
-                    )
-                }).collect::<Vec<_>>();
+                quote! {
+                    let #f_name = (0..#len).map(|_index| {
+                        Property::new(
+                            weak.clone(),
+                            Default::default(),
+                            #setter
+                        ).sender().clone()
+                    }).collect::<Vec<_>>();
 
-                let senders = #f_name.iter().map(|p| p.sender().clone()).collect::<Vec<_>>();
-                let inner = std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len]));
-                let model = frand_property::NotifyModel::new(inner, move |i, v| {
-                    if let Some(sender) = senders.get(i) {
-                        sender.send(v);
-                    }
-                });
+                    let senders = #f_name.clone();
+                    // Property::new로 생성된 sender들은 각각의 set_row_data를 호출하도록 설정됨.
+                    let inner = std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len]));
+                    // NotifyModel의 on_change는 Slint -> Rust 알림용인데 Out이므로 필요 없음.
+                    let model = frand_property::NotifyModel::new(inner, |_, _| {});
 
-                component.global::<#type_name>()
-                    .#set_global_ident(
-                        slint::ModelRc::new(std::rc::Rc::new(model))
-                    );
-             }
+                    component.global::<#type_name>()
+                        .#set_global_ident(
+                            slint::ModelRc::new(std::rc::Rc::new(model))
+                        );
+
+                }
+            } else {
+                // In: Slint -> Rust.
+                // Slint에서 변경되면 Rust에 알림.
+                // Property::new로 생성하여 Receiver는 보관, Sender는 NotifyModel에 전달.
+                quote! {
+                    let #f_prop_ident = (0..#len).map(|_index| {
+                        Property::new(
+                            weak.clone(),
+                            Default::default(),
+                            move |_, _| {} // In 방향이므로 Rust -> Slint 세터 필요 없음 (NotifyModel이 처리할수도 있으나 보통 역방향은 X)
+                        )
+                    }).collect::<Vec<_>>();
+                    
+                    let #f_name = #f_prop_ident.iter().map(|p| p.receiver().clone()).collect::<Vec<_>>();
+                    let senders = #f_prop_ident.iter().map(|p| p.sender().clone()).collect::<Vec<_>>();
+
+                    let inner = std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len]));
+                    let model = frand_property::NotifyModel::new(inner, move |i, v| {
+                        if let Some(sender) = senders.get(i) {
+                            sender.send(v);
+                        }
+                    });
+
+                    component.global::<#type_name>()
+                        .#set_global_ident(
+                            slint::ModelRc::new(std::rc::Rc::new(model))
+                        );
+                }
+            }
         } else {
             let is_unit = if let Type::Tuple(t) = f_ty {
                 t.elems.is_empty()
@@ -124,33 +168,41 @@ fn generate_field_inits(input: &SlintModel, type_name: &syn::Ident) -> Vec<Token
                 false
             };
 
-            if is_unit && (*direction == Direction::Out || *direction == Direction::InOut) {
-                abort!(f_name, "`()` type cannot be used with `out` or `in-out` direction");
+            if is_unit && *direction == Direction::Out {
+                abort!(f_name, "`()` type cannot be used with `out` direction");
             }
 
-            let setter = if *direction == Direction::Out || *direction == Direction::InOut {
-                 if is_unit {
-                     quote! { |_, _| {} }
+            if *direction == Direction::Out {
+                 let set_ident = format_ident!("set_{}", f_name);
+                 let setter = if is_unit {
+                      quote! { |_, _| {} }
                  } else {
-                     let set_ident = format_ident!("set_{}", f_name);
                      quote! {
-                        |c, v| {
-                            c.upgrade_in_event_loop(move |c| {
-                                c.global::<#type_name>().#set_ident(v)
-                            }).unwrap() // TODO: 에러 처리
-                        }
+                         |c, v| {
+                             c.upgrade_in_event_loop(move |c| {
+                                 c.global::<#type_name>().#set_ident(v)
+                             }).unwrap() // TODO: 에러 처리
+                         }
                      }
-                 }
+                 };
+                  
+                quote! {
+                    let #f_name = Property::new(
+                        weak.clone(),
+                        Default::default(),
+                        #setter,
+                    ).sender().clone();
+                }
             } else {
-                quote! { |_, _| {} }
-            };
-
-            quote! {
-                let #f_name = Property::new(
-                    weak.clone(),
-                    Default::default(),
-                    #setter,
-                );
+                // In Property
+                quote! {
+                    let #f_prop_ident = Property::new(
+                        weak.clone(),
+                        Default::default(),
+                        |_, _| {},
+                    );
+                    let #f_name = #f_prop_ident.receiver().clone();
+                }
             }
         }
     }).collect()
@@ -161,16 +213,22 @@ fn generate_sender_defs(input: &SlintModel) -> Vec<TokenStream> {
         let f_name = &f.name;
         let direction = &f.direction;
         let sender_name = format_ident!("{}_sender", f_name);
+        let f_prop_ident = format_ident!("{}_prop", f_name);
         let f_ty = &f.ty;
         
         if let Type::Array(_) = f_ty {
             quote! {}
         } else {
             if *direction == Direction::Out {
+                // Out 필드는 Sender가 이미 #f_name 에 있음. 
+                // bindings에서 필요하다면 #f_name을 씀.
+                // Property 구조가 아니므로 sender() 메서드 호출 불가.
+                // 하지만 Out 이므로 Slint 이벤트 바인딩(In 동작)이 필요 없음.
                 quote! {}
             } else {
+                // In 필드: Property로 생성했으므로 sender 추출 가능
                 quote! {
-                    let #sender_name = #f_name.sender().clone();
+                    let #sender_name = #f_prop_ident.sender().clone();
                 }
             }
         }
@@ -184,7 +242,7 @@ fn generate_bindings(input: &SlintModel, type_name: &syn::Ident) -> Vec<TokenStr
         let direction = &f.direction;
         let sender_name = format_ident!("{}_sender", f_name);
 
-        if *direction == Direction::In || *direction == Direction::InOut {
+        if *direction == Direction::In {
              if let Type::Array(_) = f_ty {
                  quote! {}
              } else {
@@ -196,11 +254,13 @@ fn generate_bindings(input: &SlintModel, type_name: &syn::Ident) -> Vec<TokenStr
 
                 if is_unit {
                     let on_ident = format_ident!("on_{}", f_name);
+
                     quote! {
                         component.global::<#type_name>().#on_ident(move || #sender_name.notify());
                     }
                 } else {
                     let on_changed_ident = format_ident!("on_changed_{}", f_name);
+
                     quote! {
                         component.global::<#type_name>().#on_changed_ident(move |v| #sender_name.send(v));
                     }

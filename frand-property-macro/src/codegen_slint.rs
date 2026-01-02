@@ -52,21 +52,7 @@ pub fn generate(input: &SlintModel) -> String {
                     }
                 }
             }
-            Direction::InOut => {
-                data_lines.push(
-                    format!("    in-out property <{slint_type}> {kebab_name};")
-                );
 
-                if let Some(_) = array_len {
-                     data_lines.push(
-                        format!("    callback changed-{kebab_name}(index: int, value: {inside_type});", inside_type=slint_type.trim_matches(|c| c == '[' || c == ']'))
-                    );
-                } else {
-                    data_lines.push(
-                        format!("    callback changed-{kebab_name}({kebab_name}: {slint_type});")
-                    );
-                }
-            }
         }
 
     }

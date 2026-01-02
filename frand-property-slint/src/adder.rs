@@ -13,13 +13,13 @@ slint_model! {
 
 impl<C: slint::ComponentHandle + 'static> System for AdderModel<C> {
     fn start_system(&self) {
-        let mut x_1 = self.x[0].receiver().clone();
-        let mut y_1 = self.y[0].receiver().clone();
-        let sum_1 = self.sum[0].sender().clone();
+        let mut x_1 = self.x[0].clone();
+        let mut y_1 = self.y[0].clone();
+        let sum_1 = self.sum[0].clone();
 
-        let mut x_2 = self.x[1].receiver().clone();
-        let mut y_2 = self.y[1].receiver().clone();
-        let sum_2 = self.sum[1].sender().clone();
+        let mut x_2 = self.x[1].clone();
+        let mut y_2 = self.y[1].clone();
+        let sum_2 = self.sum[1].clone();
 
         tokio::spawn(async move {
             loop {
