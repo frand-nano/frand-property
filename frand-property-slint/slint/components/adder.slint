@@ -8,21 +8,6 @@ export global AdderData {
     in property <[int]> sum;
 }
 
-export component AdderDataSystem {
-    for value[i] in AdderData.x : Rectangle {
-        property <int> system-x: value;
-        changed system-x => {
-            AdderData.changed-x(i, system-x);
-        }
-    }
-    for value[i] in AdderData.y : Rectangle {
-        property <int> system-y: value;
-        changed system-y => {
-            AdderData.changed-y(i, system-y);
-        }
-    }
-}
-
 export component Adder inherits Rectangle {
     in property <int> index;
 

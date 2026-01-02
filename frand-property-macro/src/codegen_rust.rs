@@ -96,11 +96,6 @@ fn generate_field_inits(input: &SlintModel, type_name: &syn::Ident) -> Vec<Token
              };
 
              quote! {
-                component.global::<#type_name>()
-                    .#set_global_ident(
-                        slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len])))
-                    );
-
                 let #f_name = (0..#len).map(|_index| {
                     Property::new(
                         weak.clone(),
@@ -108,6 +103,19 @@ fn generate_field_inits(input: &SlintModel, type_name: &syn::Ident) -> Vec<Token
                         #setter
                     )
                 }).collect::<Vec<_>>();
+
+                let senders = #f_name.iter().map(|p| p.sender().clone()).collect::<Vec<_>>();
+                let inner = std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len]));
+                let model = frand_property::NotifyModel::new(inner, move |i, v| {
+                    if let Some(sender) = senders.get(i) {
+                        sender.send(v);
+                    }
+                });
+
+                component.global::<#type_name>()
+                    .#set_global_ident(
+                        slint::ModelRc::new(std::rc::Rc::new(model))
+                    );
              }
         } else {
             let is_unit = if let Type::Tuple(t) = f_ty {
@@ -156,13 +164,7 @@ fn generate_sender_defs(input: &SlintModel) -> Vec<TokenStream> {
         let f_ty = &f.ty;
         
         if let Type::Array(_) = f_ty {
-             if *direction == Direction::Out {
-                quote! {}
-            } else {
-                quote! {
-                    let #sender_name = #f_name.iter().map(|p| p.sender().clone()).collect::<Vec<_>>();
-                }
-            }
+            quote! {}
         } else {
             if *direction == Direction::Out {
                 quote! {}
@@ -184,15 +186,7 @@ fn generate_bindings(input: &SlintModel, type_name: &syn::Ident) -> Vec<TokenStr
 
         if *direction == Direction::In || *direction == Direction::InOut {
              if let Type::Array(_) = f_ty {
-                 let on_changed_ident = format_ident!("on_changed_{}", f_name);
-                 quote! {
-                     component.global::<#type_name>().#on_changed_ident(move |i, v| {
-                         let i = i as usize;
-                         if i < #sender_name.len() {
-                             #sender_name[i].send(v);
-                         }
-                     });
-                 }
+                 quote! {}
              } else {
                 let is_unit = if let Type::Tuple(t) = f_ty {
                     t.elems.is_empty()

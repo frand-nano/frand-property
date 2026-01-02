@@ -4,10 +4,8 @@ use crate::parser::{Direction, SlintModel};
 
 pub fn generate(input: &SlintModel) -> String {
     let global_name = input.type_name.to_string();
-    let system_name = format!("{}System", global_name);
 
     let mut data_lines = Vec::new();
-    let mut system_lines = Vec::new();
 
     for field in &input.fields {
         let name = field.name.to_string();
@@ -15,11 +13,13 @@ pub fn generate(input: &SlintModel) -> String {
         
         let (slint_type, array_len) = if let Type::Array(arr) = &field.ty {
             let elem_type = rust_type_to_slint_type(&arr.elem);
+
             let len = if let Expr::Lit(lit) = &arr.len {
                 if let Lit::Int(lit_int) = &lit.lit {
                     lit_int.base10_parse::<usize>().unwrap_or(0)
                 } else { 0 }
             } else { 0 }; // Fallback for non-literal lengths
+
             (format!("[{}]", elem_type), Some(len))
         } else {
             (rust_type_to_slint_type(&field.ty), None)
@@ -69,94 +69,6 @@ pub fn generate(input: &SlintModel) -> String {
             }
         }
 
-        let system_prop_name = format!("system-{}", kebab_name);
-
-        match field.direction {
-            Direction::Out => {
-
-            }
-            Direction::In => {
-                if slint_type == "void" {
-
-                } else {
-                    if let Some(_len) = array_len {
-                         let inside_type = slint_type.trim_matches(|c| c == '[' || c == ']');
-                         system_lines.push(
-                             format!("    for value[i] in {global_name}.{kebab_name} : Rectangle {{")
-                         );
-                         system_lines.push(
-                             format!("        property <{inside_type}> {system_prop_name}: value;")
-                         );
-                         system_lines.push(
-                             format!("        changed {system_prop_name} => {{")
-                         );
-                         system_lines.push(
-                             format!("            {global_name}.changed-{kebab_name}(i, {system_prop_name});")
-                         );
-                         system_lines.push(
-                             format!("        }}")
-                         );
-                         system_lines.push(
-                             format!("    }}")
-                         );
-                    } else {
-                        system_lines.push(
-                            format!("    property <{slint_type}> {system_prop_name}: {global_name}.{kebab_name};")
-                        );
-                        system_lines.push(
-                            format!("    changed {system_prop_name} => {{")
-                        );
-
-                        system_lines.push(
-                            format!("        {global_name}.changed-{kebab_name}({system_prop_name})")
-                        );
-
-                        system_lines.push(
-                            format!("    }}")
-                        );
-                    }
-                }
-            }
-            Direction::InOut => {
-                 if let Some(_len) = array_len {
-                         let inside_type = slint_type.trim_matches(|c| c == '[' || c == ']');
-                         system_lines.push(
-                             format!("    for value[i] in {global_name}.{kebab_name} : Rectangle {{")
-                         );
-                         system_lines.push(
-                             format!("        property <{inside_type}> {system_prop_name}: value;")
-                         );
-                         system_lines.push(
-                             format!("        changed {system_prop_name} => {{")
-                         );
-                         system_lines.push(
-                             format!("            {global_name}.changed-{kebab_name}(i, {system_prop_name});")
-                         );
-                         system_lines.push(
-                             format!("        }}")
-                         );
-                         system_lines.push(
-                             format!("    }}")
-                         );
-                } else {
-                    system_lines.push(
-                        format!("    property <{slint_type}> {system_prop_name}: {global_name}.{kebab_name};")
-                    );
-
-                    system_lines.push(
-                        format!("    changed {system_prop_name} => {{")
-                    );
-
-                    system_lines.push(
-                        format!("        {global_name}.changed-{kebab_name}({system_prop_name});")
-                    );
-
-                    system_lines.push(
-                        format!("    }}")
-                    );
-                }
-            }
-        }
     }
 
     let data_doc = format!(
@@ -164,17 +76,7 @@ pub fn generate(input: &SlintModel) -> String {
         data_lines.join("\n")
     );
 
-    if system_lines.is_empty() {
-        format!(" 생성된 Slint 코드:\n```slint\n{data_doc}\n```")
-    } else {
-        let system_doc = format!(
-            "export component {} {{\n{}\n}}",
-            system_name,
-            system_lines.join("\n")
-        );
-
-        format!(" 생성된 Slint 코드:\n```slint\n{data_doc}\n\n{system_doc}\n```")
-    }
+    format!(" 생성된 Slint 코드:\n```slint\n{data_doc}\n```")
 }
 
 fn to_kebab_case(s: &str) -> String {
