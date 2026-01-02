@@ -1,57 +1,63 @@
 import { Button, VerticalBox, HorizontalBox } from "std-widgets.slint";
 
-export global AdderData {
-    in-out property <int> x;
-    callback changed-x(x: int);
-    in-out property <int> y;
-    callback changed-y(y: int);
-    in property <int> sum;
+export global AdderArrayData {
+    in-out property <[int]> x;
+    callback changed-x(index: int, value: int);
+    in-out property <[int]> y;
+    callback changed-y(index: int, value: int);
+    in property <[int]> sum;
 }
 
-export component Adder inherits Rectangle {
+export component AdderArray inherits Rectangle {
+    in property <int> index;
+
     VerticalBox {
         Text {
-            text: "X: " + AdderData.x;
+            text: "AdderArray[" + index + "]";
+        }
+
+        Text {
+            text: "X: " + AdderArrayData.x[index];
         }
 
         HorizontalBox {
             Button {
                 text: "+";
                 clicked => {
-                    AdderData.x += 1;
+                    AdderArrayData.x[index] += 1;
                 }
             }
 
             Button {
                 text: "-";
                 clicked => {
-                    AdderData.x -= 1;
+                    AdderArrayData.x[index] -= 1;
                 }
             }
         }
 
         Text {
-            text: "Y: " + AdderData.y;
+            text: "Y: " + AdderArrayData.y[index];
         }
 
         HorizontalBox {
             Button {
                 text: "+";
                 clicked => {
-                    AdderData.y += 1;
+                    AdderArrayData.y[index] += 1;
                 }
             }
 
             Button {
                 text: "-";
                 clicked => {
-                    AdderData.y -= 1;
+                    AdderArrayData.y[index] -= 1;
                 }
             }
         }
 
         Text {
-            text: "Sum: " + AdderData.sum;
+            text: "Sum: " + AdderArrayData.sum[index];
             font-size: 24px;
             horizontal-alignment: center;
         }

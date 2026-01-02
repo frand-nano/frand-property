@@ -1,11 +1,13 @@
 slint::include_modules!();
 
-mod adder;
 mod screen;
+mod adder;
+mod adder_array;
 
 use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
 use frand_property::System;
 use crate::adder::AdderModel;
+use crate::adder_array::AdderArrayModel;
 use crate::screen::ScreenModel;
 
 #[tokio::main]
@@ -20,6 +22,9 @@ async fn main() -> Result<(), slint::PlatformError> {
 
     let adder_model = AdderModel::<MainWindow>::new(&window);
     adder_model.start_system();
+
+    let adder_array_model = AdderArrayModel::<MainWindow>::new(&window);
+    adder_array_model.start_system();
 
     window.run()?;
     Ok(())
