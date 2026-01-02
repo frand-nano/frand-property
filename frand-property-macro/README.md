@@ -21,7 +21,6 @@ slint_model! {
     pub AdderModel: AdderData {
         in x: i32,           // Slint -> Rust (단일 입력)
         out sum: i32,        // Rust -> Slint (단일 출력)
-        in-out data: i32,    // 양방향 동기화
 
         // 배열 지원
         in inputs: i32[LEN], // 길이 2의 배열 입력
@@ -33,17 +32,18 @@ slint_model! {
 ### 키워드 설명
 
 - **`in`**: Slint UI에서 값이 변경되면 Rust 모델에 알림(`changed()`)을 보냅니다.
+    - Rust 모델에는 `Receiver<T>` 또는 `Vec<Receiver<T>>` 타입 필드가 생성됩니다.
     - 배열의 경우, 인덱스와 함께 변경 사항을 감지할 수 있습니다.
 - **`out`**: Rust 모델에서 값을 변경하여 Slint UI로 전송(`send()`)합니다.
+    - Rust 모델에는 `Sender<C, T>` 또는 `Vec<Sender<C, T>>` 타입 필드가 생성됩니다.
     - **제약 사항**: `()` (유닛 타입)은 값을 가질 수 없으므로 `out` 키워드와 함께 사용할 수 없습니다.
-- **`in-out`**: 양방향 동기화를 지원합니다.
 
 `pub` 키워드를 사용하여 생성된 모델 구조체의 가시성을 제어할 수 있습니다.
 
 ## 배열 프로퍼티
 
 배열 프로퍼티는 `name: type[len]` 문법으로 정의합니다. `len`은 `usize` 타입의 상수이거나 리터럴이어야 합니다.
-배열을 사용하면 Rust에서는 `Vec<Property<...>>` 형태로 관리되며, Slint에서는 `VecModel` 등과 연동되어 각 인덱스별로 독립적인 `Property` 객체들이 생성됩니다.
+배열을 사용하면 Rust에서는 `Vec<Receiver<...>>` 또는 `Vec<Sender<...>>` 형태로 관리되며, Slint 컴포넌트와 자동으로 바인딩됩니다.
 
 ## 라이선스
 

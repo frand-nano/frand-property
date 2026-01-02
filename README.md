@@ -40,11 +40,12 @@ const LEN: usize = 2;
 slint_model! {
     pub AdderModel: AdderData {
         // [in] Slint -> Rust
-        // 배열로 정의하면 Rust에서는 Vec<Property<...>>가 됩니다.
+        // 배열로 정의하면 Rust에서는 Vec<Receiver<...>>가 됩니다.
         in x: i32[LEN],
         in y: i32[LEN],
 
         // [out] Rust -> Slint
+        // 배열로 정의하면 Rust에서는 Vec<Sender<...>>가 됩니다.
         out sum: i32[LEN],
     }
 }
@@ -56,14 +57,15 @@ Slint 파일에서는 전역 데이터(Global)와 이를 사용하는 로직을 
 
 ```slint
 export global AdderData {
-    // Slint 모델 정의 (배열 타입 지원 가정)
-    // 실제 Slint 코드에서는 list 모델이나 별도의 프로퍼티 세트로 바인딩됩니다.
-    // 매크로가 생성하는 Rust 코드는 Slint의 콜백 및 모델 구조와 연동됩니다.
-    in-out property <[int]> x: [0, 0];
-    in-out property <[int]> y: [0, 0];
+    // Slint 모델 정의
+    // in: 변경 시 Rust로 알림이 전달됩니다.
+    in property <[int]> x: [0, 0];
+    in property <[int]> y: [0, 0];
+    
+    // out: Rust에서 값을 변경하면 UI에 반영됩니다.
     in property <[int]> sum: [0, 0];
     
-    // 배열 요소 변경 알림을 위한 콜백
+    // 배열 요소 변경 알림을 위한 콜백 (in 프로퍼티용)
     callback changed-x(int, int); // index, value
     callback changed-y(int, int); // index, value
 }
@@ -82,9 +84,10 @@ use frand_property::System;
 impl<C: slint::ComponentHandle + 'static> System for AdderModel<C> {
     fn start_system(&self) {
         // 배열의 각 요소에 대한 채널에 접근
-        let mut x_0 = self.x[0].receiver().clone();
-        let mut y_0 = self.y[0].receiver().clone();
-        let sum_0 = self.sum[0].sender().clone();
+        // slint_model!로 생성된 필드는 Vec<Receiver<T>> (in) 또는 Vec<Sender<C, T>> (out) 타입입니다.
+        let mut x_0 = self.x[0].clone();
+        let mut y_0 = self.y[0].clone();
+        let sum_0 = self.sum[0].clone();
 
         tokio::spawn(async move {
             loop {
