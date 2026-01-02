@@ -79,13 +79,15 @@ fn generate_field_inits(input: &SlintModel, type_name: &syn::Ident) -> Vec<Token
 
         if let Type::Array(arr) = f_ty {
              let len = &arr.len;
-             
+             let set_global_ident = format_ident!("set_{}", f_name);
+
              let setter = if *direction == Direction::Out || *direction == Direction::InOut {
-                 let set_ident = format_ident!("get_{}", f_name); // slint는 속성 x에 대해 get_x()를 생성합니다.
+                 let get_ident = format_ident!("get_{}", f_name);
+
                  quote! {
                      move |c, v| {
                         c.upgrade_in_event_loop(move |c| {
-                            c.global::<#type_name>().#set_ident().set_row_data(_index, v);
+                            c.global::<#type_name>().#get_ident().set_row_data(_index, v);
                         }).unwrap()
                     }
                  }
@@ -94,6 +96,11 @@ fn generate_field_inits(input: &SlintModel, type_name: &syn::Ident) -> Vec<Token
              };
 
              quote! {
+                component.global::<#type_name>()
+                    .#set_global_ident(
+                        slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len])))
+                    );
+
                 let #f_name = (0..#len).map(|_index| {
                     Property::new(
                         weak.clone(),

@@ -1,11 +1,13 @@
 use frand_property::*;
 use crate::AdderData;
 
+const PROP_LEN: usize = 2;
+
 slint_model! {
     pub AdderModel: AdderData {
-        in x: i32[2],
-        in y: i32[2],
-        out sum: i32[2],
+        in x: i32[PROP_LEN],
+        in y: i32[PROP_LEN],
+        out sum: i32[PROP_LEN],
     }
 }
 

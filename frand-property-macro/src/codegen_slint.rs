@@ -24,20 +24,11 @@ pub fn generate(input: &SlintModel) -> String {
         } else {
             (rust_type_to_slint_type(&field.ty), None)
         };
-        
-        // 배열의 기본값
-        let init_val = if let Some(len) = array_len {
-            let default_elem = if slint_type.contains("int") || slint_type.contains("float") { "0" } else { "\"\"" };
-            let elems = vec![default_elem; len];
-            format!(": [{},];", elems.join(", "))
-        } else {
-            ";".to_string()
-        };
 
         match field.direction {
             Direction::Out => {
                 data_lines.push(
-                    format!("    in property <{slint_type}> {kebab_name}{init_val}")
+                    format!("    in property <{slint_type}> {kebab_name};")
                 );
             }
             Direction::In => {
@@ -47,7 +38,7 @@ pub fn generate(input: &SlintModel) -> String {
                     );
                 } else {
                     data_lines.push(
-                        format!("    in-out property <{slint_type}> {kebab_name}{init_val}")
+                        format!("    in-out property <{slint_type}> {kebab_name};")
                     );
                     
                     if let Some(_) = array_len {
@@ -63,7 +54,7 @@ pub fn generate(input: &SlintModel) -> String {
             }
             Direction::InOut => {
                 data_lines.push(
-                    format!("    in-out property <{slint_type}> {kebab_name}{init_val}")
+                    format!("    in-out property <{slint_type}> {kebab_name};")
                 );
 
                 if let Some(_) = array_len {
@@ -88,7 +79,7 @@ pub fn generate(input: &SlintModel) -> String {
                 if slint_type == "void" {
 
                 } else {
-                    if let Some(len) = array_len {
+                    if let Some(_len) = array_len {
                          let inside_type = slint_type.trim_matches(|c| c == '[' || c == ']');
                          system_lines.push(
                              format!("    for value[i] in {global_name}.{kebab_name} : Rectangle {{")
@@ -127,7 +118,7 @@ pub fn generate(input: &SlintModel) -> String {
                 }
             }
             Direction::InOut => {
-                 if let Some(len) = array_len {
+                 if let Some(_len) = array_len {
                          let inside_type = slint_type.trim_matches(|c| c == '[' || c == ']');
                          system_lines.push(
                              format!("    for value[i] in {global_name}.{kebab_name} : Rectangle {{")
