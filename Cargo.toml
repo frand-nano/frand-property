@@ -1,6 +1,6 @@
 [workspace]
 members = ["frand-property-macro", "frand-property-slint"]
-package.version = "0.2.1"
+package.version = "0.2.2"
 package.edition = "2024"
 package.authors = ["frand-nano <frand.nano@gmail.com>"]
 

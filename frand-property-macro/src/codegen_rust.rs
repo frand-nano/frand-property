@@ -141,7 +141,7 @@ fn generate_field_inits(input: &SlintModel, type_name: &syn::Ident) -> Vec<Token
                         Property::new(
                             weak.clone(),
                             Default::default(),
-                            move |_, _| {} // In 방향이므로 Rust -> Slint 세터 필요 없음 (NotifyModel이 처리할수도 있으나 보통 역방향은 X)
+                            move |_, _| {} // In: Rust -> Slint 세터 필요 없음 (NotifyModel이 처리할 수 있으나 보통 역방향은 X)
                         )
                     }).collect::<Vec<_>>();
                     
@@ -193,17 +193,42 @@ fn generate_field_inits(input: &SlintModel, type_name: &syn::Ident) -> Vec<Token
                         #setter,
                     ).sender().clone();
                 }
-            } else {
-                // In Property
-                quote! {
-                    let #f_prop_ident = Property::new(
-                        weak.clone(),
-                        Default::default(),
-                        |_, _| {},
-                    );
-                    let #f_name = #f_prop_ident.receiver().clone();
-                }
-            }
+             } else {
+                 // In Property
+                 if is_unit {
+                      quote! {
+                         let #f_prop_ident = Property::new(
+                             weak.clone(),
+                             Default::default(),
+                             |_, _| {},
+                         );
+                         let #f_name = #f_prop_ident.receiver().clone();
+                     }
+                 } else {
+                     let set_ident = format_ident!("set_{}", f_name);
+                     
+                     quote! {
+                         let #f_prop_ident = Property::new(
+                             weak.clone(),
+                             Default::default(),
+                             |_, _| {},
+                         );
+                         let sender = #f_prop_ident.sender().clone();
+    
+                         let inner = std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); 1]));
+                         let model = frand_property::NotifyModel::new(inner, move |_, v| {
+                             sender.send(v);
+                         });
+    
+                         component.global::<#type_name>()
+                             .#set_ident(
+                                 slint::ModelRc::new(std::rc::Rc::new(model))
+                             );
+    
+                         let #f_name = #f_prop_ident.receiver().clone();
+                     }
+                 }
+             }
         }
     }).collect()
 }
@@ -227,8 +252,19 @@ fn generate_sender_defs(input: &SlintModel) -> Vec<TokenStream> {
                 quote! {}
             } else {
                 // In 필드: Property로 생성했으므로 sender 추출 가능
-                quote! {
-                    let #sender_name = #f_prop_ident.sender().clone();
+                // 단, unit 타입인 경우에만 binding에서 사용함.
+                let is_unit = if let Type::Tuple(t) = f_ty {
+                    t.elems.is_empty()
+                } else {
+                    false
+                };
+
+                if is_unit {
+                    quote! {
+                        let #sender_name = #f_prop_ident.sender().clone();
+                    }
+                } else {
+                    quote! {}
                 }
             }
         }
@@ -258,14 +294,11 @@ fn generate_bindings(input: &SlintModel, type_name: &syn::Ident) -> Vec<TokenStr
                     quote! {
                         component.global::<#type_name>().#on_ident(move || #sender_name.notify());
                     }
-                } else {
-                    let on_changed_ident = format_ident!("on_changed_{}", f_name);
-
-                    quote! {
-                        component.global::<#type_name>().#on_changed_ident(move |v| #sender_name.send(v));
-                    }
-                }
-             }
+                 } else {
+                    // 스칼라 입력에 대해서는 NotifyModel이 변경을 처리하므로 콜백이 필요 없습니다.
+                    quote! {}
+                 }
+              }
         } else {
             quote! {}
         }

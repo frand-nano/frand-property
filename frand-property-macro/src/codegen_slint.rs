@@ -11,14 +11,14 @@ pub fn generate(input: &SlintModel) -> String {
         let name = field.name.to_string();
         let kebab_name = to_kebab_case(&name);
         
-        let (slint_type, array_len) = if let Type::Array(arr) = &field.ty {
+        let (slint_type, _array_len) = if let Type::Array(arr) = &field.ty {
             let elem_type = rust_type_to_slint_type(&arr.elem);
 
             let len = if let Expr::Lit(lit) = &arr.len {
                 if let Lit::Int(lit_int) = &lit.lit {
                     lit_int.base10_parse::<usize>().unwrap_or(0)
                 } else { 0 }
-            } else { 0 }; // Fallback for non-literal lengths
+            } else { 0 }; // 리터럴이 아닌 길이의 경우 대체값
 
             (format!("[{}]", elem_type), Some(len))
         } else {
@@ -38,18 +38,8 @@ pub fn generate(input: &SlintModel) -> String {
                     );
                 } else {
                     data_lines.push(
-                        format!("    in-out property <{slint_type}> {kebab_name};")
+                        format!("    in-out property <[{slint_type}]> {kebab_name};")
                     );
-                    
-                    if let Some(_) = array_len {
-                         data_lines.push(
-                            format!("    callback changed-{kebab_name}(index: int, value: {inside_type});", inside_type=slint_type.trim_matches(|c| c == '[' || c == ']'))
-                        );
-                    } else {
-                         data_lines.push(
-                            format!("    callback changed-{kebab_name}({kebab_name}: {slint_type});")
-                        );
-                    }
                 }
             }
 
