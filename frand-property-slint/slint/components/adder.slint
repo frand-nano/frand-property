@@ -1,68 +1,74 @@
 import { Button, VerticalBox, HorizontalBox } from "std-widgets.slint";
 
 export global AdderData {
-    in-out property <int> x;
-    callback changed-x(x: int);
-    in-out property <int> y;
-    callback changed-y(y: int);
-    in property <int> sum;
+    in-out property <[int]> x: [0, 0,];
+    callback changed-x(index: int, value: int);
+    in-out property <[int]> y: [0, 0,];
+    callback changed-y(index: int, value: int);
+    in property <[int]> sum: [0, 0,];
 }
 
 export component AdderDataSystem {
-    property <int> system-x: AdderData.x;
-    changed system-x => {
-        AdderData.changed-x(system-x)
+    for value[i] in AdderData.x : Rectangle {
+        property <int> system-x: value;
+        changed system-x => {
+            AdderData.changed-x(i, system-x);
+        }
     }
-    property <int> system-y: AdderData.y;
-    changed system-y => {
-        AdderData.changed-y(system-y)
+    for value[i] in AdderData.y : Rectangle {
+        property <int> system-y: value;
+        changed system-y => {
+            AdderData.changed-y(i, system-y);
+        }
     }
 }
 
 export component Adder inherits Rectangle {
+    in property <int> index;
+
     VerticalBox {
         Text {
-            text: "X: " + AdderData.x;
+            text: "X: " + AdderData.x[index];
         }
 
         HorizontalBox {
             Button {
                 text: "+";
                 clicked => {
-                    AdderData.x += 1;
+                    AdderData.x[index] += 1;
                 }
             }
 
             Button {
                 text: "-";
                 clicked => {
-                    AdderData.x -= 1;
+                    AdderData.x[index] -= 1;
                 }
             }
         }
 
         Text {
-            text: "Y: " + AdderData.y;
+            text: "Y: " + AdderData.y[index];
         }
 
         HorizontalBox {
             Button {
                 text: "+";
                 clicked => {
-                    AdderData.y += 1;
+                    AdderData.y[index] += 1;
                 }
             }
 
             Button {
                 text: "-";
                 clicked => {
-                    AdderData.y -= 1;
+                    AdderData.y[index] -= 1;
                 }
             }
         }
 
         Text {
-            text: "Sum: " + AdderData.sum;
+            text: "Sum: " + AdderData.sum[index];
             font-size: 24px;
             horizontal-alignment: center;
         }

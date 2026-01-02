@@ -23,6 +23,7 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
 
         impl<C: slint::ComponentHandle + 'static> #model_name<C> {
             pub fn new(component: &C) -> Self where for<'a> #type_name<'a>: slint::Global<'a, C> {
+                use slint::Model as _;
                 let weak = std::sync::Arc::new(component.as_weak());
 
                 #(#field_inits)*
@@ -45,19 +46,26 @@ fn generate_field_defs(input: &SlintModel) -> Vec<TokenStream> {
         let f_name = &f.name;
         let f_ty = &f.ty;
 
-        let is_unit = if let Type::Tuple(t) = f_ty {
-            t.elems.is_empty()
-        } else {
-            false
-        };
-
-        if is_unit {
+        if let Type::Array(arr) = f_ty {
+            let elem_ty = &arr.elem;
             quote! {
-                #f_vis #f_name: Property<slint::Weak<C>, ()>
+                #f_vis #f_name: Vec<Property<slint::Weak<C>, #elem_ty>>
             }
         } else {
-            quote! {
-                #f_vis #f_name: Property<slint::Weak<C>, #f_ty>
+             let is_unit = if let Type::Tuple(t) = f_ty {
+                t.elems.is_empty()
+            } else {
+                false
+            };
+
+            if is_unit {
+                quote! {
+                    #f_vis #f_name: Property<slint::Weak<C>, ()>
+                }
+            } else {
+                quote! {
+                    #f_vis #f_name: Property<slint::Weak<C>, #f_ty>
+                }
             }
         }
     }).collect()
@@ -69,39 +77,66 @@ fn generate_field_inits(input: &SlintModel, type_name: &syn::Ident) -> Vec<Token
         let f_ty = &f.ty;
         let direction = &f.direction;
 
-        let is_unit = if let Type::Tuple(t) = f_ty {
-            t.elems.is_empty()
-        } else {
-            false
-        };
-
-        if is_unit && (*direction == Direction::Out || *direction == Direction::InOut) {
-            abort!(f_name, "`()` type cannot be used with `out` or `in-out` direction");
-        }
-
-        let setter = if *direction == Direction::Out || *direction == Direction::InOut {
-             if is_unit {
-                 quote! { |_, _| {} }
-             } else {
-                 let set_ident = format_ident!("set_{}", f_name);
+        if let Type::Array(arr) = f_ty {
+             let len = &arr.len;
+             
+             let setter = if *direction == Direction::Out || *direction == Direction::InOut {
+                 let set_ident = format_ident!("get_{}", f_name); // slint는 속성 x에 대해 get_x()를 생성합니다.
                  quote! {
-                    |c, v| {
+                     move |c, v| {
                         c.upgrade_in_event_loop(move |c| {
-                            c.global::<#type_name>().#set_ident(v)
-                        }).unwrap() // TODO: 에러 처리
+                            c.global::<#type_name>().#set_ident().set_row_data(_index, v);
+                        }).unwrap()
                     }
                  }
+             } else {
+                 quote! { move |_, _| {} }
+             };
+
+             quote! {
+                let #f_name = (0..#len).map(|_index| {
+                    Property::new(
+                        weak.clone(),
+                        Default::default(),
+                        #setter
+                    )
+                }).collect::<Vec<_>>();
              }
         } else {
-            quote! { |_, _| {} }
-        };
+            let is_unit = if let Type::Tuple(t) = f_ty {
+                t.elems.is_empty()
+            } else {
+                false
+            };
 
-        quote! {
-            let #f_name = Property::new(
-                weak.clone(),
-                Default::default(),
-                #setter,
-            );
+            if is_unit && (*direction == Direction::Out || *direction == Direction::InOut) {
+                abort!(f_name, "`()` type cannot be used with `out` or `in-out` direction");
+            }
+
+            let setter = if *direction == Direction::Out || *direction == Direction::InOut {
+                 if is_unit {
+                     quote! { |_, _| {} }
+                 } else {
+                     let set_ident = format_ident!("set_{}", f_name);
+                     quote! {
+                        |c, v| {
+                            c.upgrade_in_event_loop(move |c| {
+                                c.global::<#type_name>().#set_ident(v)
+                            }).unwrap() // TODO: 에러 처리
+                        }
+                     }
+                 }
+            } else {
+                quote! { |_, _| {} }
+            };
+
+            quote! {
+                let #f_name = Property::new(
+                    weak.clone(),
+                    Default::default(),
+                    #setter,
+                );
+            }
         }
     }).collect()
 }
@@ -111,12 +146,23 @@ fn generate_sender_defs(input: &SlintModel) -> Vec<TokenStream> {
         let f_name = &f.name;
         let direction = &f.direction;
         let sender_name = format_ident!("{}_sender", f_name);
+        let f_ty = &f.ty;
         
-        if *direction == Direction::Out {
-            quote! {}
+        if let Type::Array(_) = f_ty {
+             if *direction == Direction::Out {
+                quote! {}
+            } else {
+                quote! {
+                    let #sender_name = #f_name.iter().map(|p| p.sender().clone()).collect::<Vec<_>>();
+                }
+            }
         } else {
-            quote! {
-                let #sender_name = #f_name.sender().clone();
+            if *direction == Direction::Out {
+                quote! {}
+            } else {
+                quote! {
+                    let #sender_name = #f_name.sender().clone();
+                }
             }
         }
     }).collect()
@@ -130,23 +176,35 @@ fn generate_bindings(input: &SlintModel, type_name: &syn::Ident) -> Vec<TokenStr
         let sender_name = format_ident!("{}_sender", f_name);
 
         if *direction == Direction::In || *direction == Direction::InOut {
-            let is_unit = if let Type::Tuple(t) = f_ty {
-                t.elems.is_empty()
-            } else {
-                false
-            };
+             if let Type::Array(_) = f_ty {
+                 let on_changed_ident = format_ident!("on_changed_{}", f_name);
+                 quote! {
+                     component.global::<#type_name>().#on_changed_ident(move |i, v| {
+                         let i = i as usize;
+                         if i < #sender_name.len() {
+                             #sender_name[i].send(v);
+                         }
+                     });
+                 }
+             } else {
+                let is_unit = if let Type::Tuple(t) = f_ty {
+                    t.elems.is_empty()
+                } else {
+                    false
+                };
 
-            if is_unit {
-                let on_ident = format_ident!("on_{}", f_name);
-                quote! {
-                    component.global::<#type_name>().#on_ident(move || #sender_name.notify());
+                if is_unit {
+                    let on_ident = format_ident!("on_{}", f_name);
+                    quote! {
+                        component.global::<#type_name>().#on_ident(move || #sender_name.notify());
+                    }
+                } else {
+                    let on_changed_ident = format_ident!("on_changed_{}", f_name);
+                    quote! {
+                        component.global::<#type_name>().#on_changed_ident(move |v| #sender_name.send(v));
+                    }
                 }
-            } else {
-                let on_changed_ident = format_ident!("on_changed_{}", f_name);
-                quote! {
-                    component.global::<#type_name>().#on_changed_ident(move |v| #sender_name.send(v));
-                }
-            }
+             }
         } else {
             quote! {}
         }

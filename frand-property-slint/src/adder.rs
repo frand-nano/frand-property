@@ -3,26 +3,36 @@ use crate::AdderData;
 
 slint_model! {
     pub AdderModel: AdderData {
-        in x: i32,
-        in y: i32,
-        out sum: i32,
+        in x: i32[2],
+        in y: i32[2],
+        out sum: i32[2],
     }
 }
 
 impl<C: slint::ComponentHandle + 'static> System for AdderModel<C> {
     fn start_system(&self) {
-        let mut x = self.x.receiver().clone();
-        let mut y = self.y.receiver().clone();
-        let sum = self.sum.sender().clone();
+        let mut x_1 = self.x[0].receiver().clone();
+        let mut y_1 = self.y[0].receiver().clone();
+        let sum_1 = self.sum[0].sender().clone();
+
+        let mut x_2 = self.x[1].receiver().clone();
+        let mut y_2 = self.y[1].receiver().clone();
+        let sum_2 = self.sum[1].sender().clone();
 
         tokio::spawn(async move {
             loop {
                 tokio::select! {
-                    x = x.changed() => {
-                        sum.send(x + y.value());
+                    x = x_1.changed() => {
+                        sum_1.send(x + y_1.value());
                     }
-                    y = y.changed() => {
-                        sum.send(x.value() + y);
+                    y = y_1.changed() => {
+                        sum_1.send(x_1.value() + y);
+                    }
+                    x = x_2.changed() => {
+                        sum_2.send(x + y_2.value());
+                    }
+                    y = y_2.changed() => {
+                        sum_2.send(x_2.value() + y);
                     }
                 }
             }

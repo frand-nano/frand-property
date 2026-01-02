@@ -11,3 +11,5 @@ slint-build = "1.14"
 frand-property = { path = ".." }
 slint = "1.14"
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "time"] }
+log = "0.4"
+simplelog = "0.12"

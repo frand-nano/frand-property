@@ -10,7 +10,7 @@ pub struct Sender<C, T> {
     component: Arc<C>,
     sender: watch::Sender<T>,
     receiver: watch::Receiver<T>,
-    set: fn(&C, T),
+    set: Arc<dyn Fn(&C, T) + Send + Sync>,
 }
 
 impl<C, T> Clone for Sender<C, T> {
@@ -19,7 +19,7 @@ impl<C, T> Clone for Sender<C, T> {
             component: self.component.clone(),
             sender: self.sender.clone(),
             receiver: self.receiver.clone(),
-            set: self.set,
+            set: self.set.clone(),
         }
     }
 }
@@ -37,7 +37,7 @@ impl<C, T> Property<C, T> {
     pub fn new(
         component: Arc<C>,
         initial_value: T,
-        set: fn(&C, T),
+        set: impl Fn(&C, T) + 'static + Send + Sync,
     ) -> Self where T: Copy + Send + Sync {
         let channel = watch::channel(initial_value);
 
@@ -46,7 +46,7 @@ impl<C, T> Property<C, T> {
                 component,
                 sender: channel.0.clone(),
                 receiver: channel.1.clone(),
-                set,
+                set: Arc::new(set),
             },
             receiver: Receiver {
                 receiver: channel.1,

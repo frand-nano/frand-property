@@ -71,12 +71,22 @@ impl Parse for SlintModelField {
              return Err(input.error("expected `in`, `out` or `in-out`"));
         };
 
+        let name = input.parse()?;
+        let _colon_token = input.parse()?;
+        let mut ty: Type = input.parse()?;
+        if input.peek(token::Bracket) {
+            let content;
+            syn::bracketed!(content in input);
+            let len: syn::Expr = content.parse()?;
+            ty = syn::parse_quote!([#ty; #len]);
+        }
+
         Ok(SlintModelField {
             vis,
             direction,
-            name: input.parse()?,
-            _colon_token: input.parse()?,
-            ty: input.parse()?,
+            name,
+            _colon_token,
+            ty,
         })
     }
 }
