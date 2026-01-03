@@ -2,16 +2,16 @@
 
 **frand-property**는 Rust와 Slint UI 간의 상태 동기화 및 비동기 로직 처리를 단순화하기 위한 라이브러리입니다.
 
-`slint_model!` 매크로를 통해 단일 값뿐만 아니라 배열 형태의 프로퍼티 바인딩을 자동화하고, `System` 트레이트를 통해 비동기 업데이트 로직을 체계적으로 관리할 수 있습니다.
+`slint_model!` 매크로를 통해 복잡한 보일러플레이트 없이 Rust 구조체와 Slint 컴포넌트를 바인딩하고, `NotifyModel`을 통해 효율적인 반응형 데이터 흐름을 구현할 수 있습니다.
 
 ## 주요 기능
 
-- **`slint_model!` 매크로**: Rust 구조체와 Slint 컴포넌트 간의 프로퍼티를 직관적으로 정의합니다.
-    - `in`: Slint -> Rust (값 변경 감지 또는 이벤트 수신)
-    - `out`: Rust -> Slint (값 전송)
-    - **배열 지원**: `type[len]` 구문으로 여러 개의 프로퍼티를 한 번에 선언하고 관리할 수 있습니다.
-- **`System` 트레이트**: 비동기 작업 루프(`tokio::spawn`, `tokio::select!`)를 표준화된 방식으로 관리합니다.
-- **반응형 데이터 흐름**: Slint의 프로퍼티 변경을 Rust에서 `tokio` 채널 기반으로 감지하고 처리합니다.
+- **`slint_model!` 매크로**: Rust 모델 정의로부터 Slint 바인딩 코드를 자동 생성합니다.
+    - **자동화된 동기화**: `in` / `out` 키워드로 데이터 흐름 방향을 직관적으로 정의합니다.
+    - **배열 모델 지원**: `Model[N]` 문법으로 동일한 로직을 가진 다수의 모델 인스턴스를 쉽게 생성합니다.
+    - **배열 필드 지원**: `field: type[N]` 문법으로 고정 길이 배열 프로퍼티를 처리할 수 있습니다.
+- **반응형 상태 관리**: Rust의 `System` 트레이트와 `tokio` 비동기 런타임을 결합하여 UI 이벤트를 효율적으로 처리합니다.
+- **최적화된 렌더링**: 내부적으로 `NotifyModel`을 사용하여 변경된 데이터만 세밀하게 업데이트하므로 불필요한 리렌더링을 방지합니다.
 
 ## 설치
 
@@ -19,7 +19,7 @@
 
 ```toml
 [dependencies]
-frand-property = "0.1.2" # 최신 버전 확인
+frand-property = "0.2.3"
 slint = "1.8"
 tokio = { version = "1", features = ["full"] }
 ```
@@ -28,82 +28,105 @@ tokio = { version = "1", features = ["full"] }
 
 ### 1. Rust 모델 정의 (`slint_model!`)
 
-`slint_model!` 매크로를 사용하여 Rust 측 모델을 정의합니다. 배열 문법을 사용할 수 있습니다.
+`slint_model!` 매크로를 사용하여 Rust 측 모델을 정의합니다.
 
 ```rust
 use frand_property::slint_model;
-// Slint에서 생성된 모듈 경로 (build.rs 설정 필요)
+// Slint에서 생성된 구조체 (build.rs 설정 필요)
+// Slint 파일의 'export struct AdderData'에 대응합니다.
 use crate::AdderData; 
 
-const LEN: usize = 2;
+slint_model! {
+    // AdderData 구조체와 바인딩되는 AdderModel 정의
+    pub AdderModel: AdderData {
+        // [in] Slint -> Rust (값 변경 감지)
+        // Rust 타입: frand_property::Receiver<i32>
+        in x: i32,
+        in y: i32,
+
+        // [out] Rust -> Slint (값 전송 via Channel)
+        // Rust 타입: frand_property::Sender<C, i32>
+        out sum: i32,
+    }
+}
+```
+
+만약 여러 개의 모델 인스턴스가 필요하거나 필드가 배열인 경우 다음과 같이 정의할 수 있습니다:
+
+```rust
+const MODEL_LEN: usize = 2; // 모델 인스턴스 개수
+const PROP_LEN: usize = 5;  // 각 필드의 배열 길이
 
 slint_model! {
-    pub AdderModel: AdderData {
-        // [in] Slint -> Rust
-        // 배열로 정의하면 Rust에서는 Vec<Receiver<...>>가 됩니다.
-        in x: i32[LEN],
-        in y: i32[LEN],
-
-        // [out] Rust -> Slint
-        // 배열로 정의하면 Rust에서는 Vec<Sender<...>>가 됩니다.
-        out sum: i32[LEN],
+    // AdderArrayModel 인스턴스를 MODEL_LEN 개 생성 (Vec<AdderArrayModel> 반환)
+    pub AdderArrayModel[MODEL_LEN]: AdderArrayData {
+        // [in] 배열 필드
+        // Rust 타입: Vec<frand_property::Receiver<i32>>
+        in values: i32[PROP_LEN],
+        
+        // [out] 단일 필드
+        // Rust 타입: frand_property::Sender<C, i32>
+        out sum: i32,
     }
 }
 ```
 
 ### 2. Slint 파일 정의
 
-Slint 파일에서는 전역 데이터(Global)와 이를 사용하는 로직을 정의합니다. 배열을 사용하는 경우 반복문(`for`)을 활용하여 UI를 구성할 수 있습니다.
+Slint 파일에서는 데이터 구조체(`struct`)와 이를 담을 전역 싱글톤(`global`)을 정의해야 합니다. 매크로는 `{ModelName}Global`이라는 이름의 글로벌 객체와 상호작용합니다.
 
 ```slint
-export global AdderData {
-    // Slint 모델 정의
-    // in: 변경 시 Rust로 알림이 전달됩니다.
-    in property <[int]> x: [0, 0];
-    in property <[int]> y: [0, 0];
-    
-    // out: Rust에서 값을 변경하면 UI에 반영됩니다.
-    in property <[int]> sum: [0, 0];
-    
-    // 배열 요소 변경 알림을 위한 콜백 (in 프로퍼티용)
-    callback changed-x(int, int); // index, value
-    callback changed-y(int, int); // index, value
+// 1. 데이터 구조체 정의 (Rust의 AdderData와 매핑)
+export struct AdderData {
+    x: int,
+    y: int,
+    sum: int,
 }
 
-// ... UI 컴포넌트 구현 ...
+// 2. 전역 싱글톤 정의 (이름은 반드시 {ModelName}Global 규칙을 따라야 함)
+export global AdderModelGlobal {
+    // Rust에서 이 배열 데이터를 관리합니다 (NotifyModel 사용)
+    in-out property <[AdderData]> data;
+}
+
+// 3. 컴포넌트 구현
+component AdderComponent inherits Rectangle {
+    in-out property <int> index; // 모델 인덱스
+
+    // Global 데이터 바인딩
+    // (매크로가 생성하는 코드는 내부적으로 Global.data[index]를 참조합니다)
+    // 실제 UI 구현...
+}
 ```
-*(참고: 실제 Slint 코드는 `slint_model!` 매크로가 기대하는 인터페이스(콜백 이름 등)에 맞춰 작성해야 합니다.)*
 
 ### 3. 시스템 로직 구현 (`System` trait)
 
-`System` 트레이트를 구현하여 비즈니스 로직을 작성합니다. 배열의 각 요소를 독립적으로 제어할 수 있습니다.
+`System` 트레이트를 구현하여 상태 변경에 따른 비즈니스 로직을 작성합니다.
 
 ```rust
 use frand_property::System;
 
 impl<C: slint::ComponentHandle + 'static> System for AdderModel<C> {
     fn start_system(&self) {
-        // 배열의 각 요소에 대한 채널에 접근
-        // slint_model!로 생성된 필드는 Vec<Receiver<T>> (in) 또는 Vec<Sender<C, T>> (out) 타입입니다.
-        let mut x_0 = self.x[0].clone();
-        let mut y_0 = self.y[0].clone();
-        let sum_0 = self.sum[0].clone();
+        // Receiver / Sender 복제 (비동기 클로저로 이동)
+        let mut x = self.x.clone();
+        let mut y = self.y.clone();
+        let sum = self.sum.clone();
 
         tokio::spawn(async move {
             loop {
                 tokio::select! {
-                    // 0번 인덱스의 x 값이 변경되었을 때
-                    new_x = x_0.changed() => {
-                        sum_0.send(new_x + y_0.value());
+                    // x 값이 변경되었을 때
+                    new_x = x.changed() => {
+                        sum.send(new_x + y.value());
                     }
-                    // 0번 인덱스의 y 값이 변경되었을 때
-                    new_y = y_0.changed() => {
-                        sum_0.send(x_0.value() + new_y);
+                    // y 값이 변경되었을 때
+                    new_y = y.changed() => {
+                        sum.send(x.value() + new_y);
                     }
                 }
             }
         });
-        // 반복문 등을 사용하여 모든 인덱스에 대한 로직을 설정할 수도 있습니다.
     }
 }
 ```
@@ -117,8 +140,10 @@ impl<C: slint::ComponentHandle + 'static> System for AdderModel<C> {
 async fn main() -> Result<(), slint::PlatformError> {
     let window = MainWindow::new()?;
 
-    // 모델 생성 및 시스템 시작
+    // 모델 생성 (Slint Global과 바인딩됨)
     let adder_model = AdderModel::<MainWindow>::new(&window);
+    
+    // 시스템 로직 시작 (비동기 루프 실행)
     adder_model.start_system();
 
     window.run()?;
@@ -128,9 +153,9 @@ async fn main() -> Result<(), slint::PlatformError> {
 
 ## 구조
 
-- **`frand-property-macro`**: `slint_model!` 프로시저럴 매크로
-- **`frand-property`**: `System` 트레이트 및 런타임 헬퍼
-- **`frand-property-slint`**: 예제 프로젝트
+- **`frand-property-macro`**: `slint_model!` 프로시저럴 매크로 구현체
+- **`frand-property`**: 런타임 라이브러리 (Property, NotifyModel, System trait 등)
+- **`frand-property-slint`**: 전체 기능을 보여주는 Slint 예제 프로젝트
 
 ## 라이선스
 

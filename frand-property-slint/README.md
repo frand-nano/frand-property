@@ -1,35 +1,45 @@
 # frand-property-slint
 
-이 프로젝트는 `frand-property` 라이브러리를 사용한 Slint UI 애플리케이션 예제입니다.
+이 프로젝트는 `frand-property` 라이브러리를 활용한 Slint UI 애플리케이션 예제입니다.
 
-두 가지 주요 모델(`AdderModel`, `ScreenModel`)을 통해 상태 관리와 화면 전환 패턴을 보여줍니다. 특히 `AdderModel`은 배열 프로퍼티를 활용하는 방법을 예시합니다.
+다양한 데이터 동기화 패턴(단일 값, 배열, 이벤트, 화면 전환)을 `slint_model!` 매크로와 `NotifyModel`을 통해 어떻게 구현하는지 보여줍니다.
 
 ## 프로젝트 구조
 
-- **`slint/`**: Slint UI 정의 (`.slint`)
-    - `components/adder.slint`: 덧셈 계산기 UI (배열 데이터 바인딩 예시)
-    - `screen/`: 화면 전환 관리
-- **`src/`**: Rust 로직
-    - `adder.rs`: `AdderModel` 정의 및 로직 (`x + y = sum`, 배열 처리)
-    - `screen.rs`: `ScreenModel` 정의 및 화면 전환 로직
-    - `main.rs`: 애플리케이션 진입점 및 시스템 시작
+- **`slint/`**: Slint UI 정의 파일
+    - `main.slint`: 메인 윈도우 및 글로벌 정의
+    - `components/`: UI 컴포넌트 (`adder.slint`, `repeater.slint` 등)
+    - `screen/`: 화면별 레이아웃 (`start.slint`, `pay.slint`)
+- **`src/`**: Rust 로직 구현
+    - `main.rs`: 애플리케이션 진입점 및 시스템 초기화
+    - `adder.rs`: 단일 모델 패턴 예제 (`AdderModel`)
+    - `adder_array.rs`: 배열 모델 및 배열 필드 패턴 예제 (`AdderArrayModel`)
+    - `screen.rs`: 화면 전환 로직 예제 (`ScreenModel`)
+    - `repeater.rs`: 반복 UI 패턴 예제 (`RepeaterModel`)
 
-## 주요 기능
+## 예제 시나리오
 
-### 1. Adder (배열 상태 동기화)
-- **기능**: 두 쌍의 숫자(X, Y)를 각각 입력받아 두 개의 합계(Sum)를 독립적으로 계산합니다.
-- **모델**: `AdderModel` (배열 사용)
-    - `in x: i32[2]`, `in y: i32[2]`: 각각 2개의 입력 필드를 가집니다. (Slint -> Rust 변경 감지)
-    - `out sum: i32[2]`: 2개의 결과 필드로 출력합니다. (Rust -> Slint 값 전송)
-- **동작**: `x`나 `y` 배열의 각 요소가 변경될 때마다 Rust의 `tokio::select!` 루프로 감지하여 해당 인덱스의 합계를 업데이트합니다. 이를 통해 반복적인 UI 패턴을 효율적으로 처리하는 방법을 보여줍니다.
+### 1. Adder (기본 양방향 바인딩)
+- **파일**: `src/adder.rs`, `slint/components/adder.slint`
+- **설명**: 두 개의 입력값(`x`, `y`)을 받아 합계(`sum`)를 실시간으로 계산합니다.
+- **특징**:
+    - `in` / `out` 프로퍼티의 가장 기본적인 사용법을 보여줍니다.
+    - `tokio::select!`를 사용하여 변경 사항을 비동기적으로 처리합니다.
 
-### 2. Screen (이벤트 처리)
-- **기능**: 시작 화면과 결제 화면 간의 전환을 관리합니다.
-- **모델**: `ScreenModel`
-    - `out current_screen`: 현재 표시할 화면 상태 (Enum)
-    - `in confirm_start`: 시작 화면에서 확인 버튼 클릭 시 (이벤트 수신)
-    - `in cancel_pay`: 결제 화면에서 취소 버튼 클릭 시 (이벤트 수신)
-- **동작**: 이벤트를 수신하면 `current_screen` 상태를 변경하여 화면을 전환합니다.
+### 2. Adder Array (고급 배열 처리)
+- **파일**: `src/adder_array.rs`
+- **설명**: 여러 개의 입력값을 배열(`values: i32[3]`)로 받아 그 합계를 계산합니다.
+- **특징**:
+    - `slint_model!`에서 배열 필드를 정의하는 방법을 보여줍니다 (`values: i32[N]`).
+    - **`FuturesUnordered`**를 사용하여 배열 내의 개별 요소 변경을 효율적으로 감지하고 처리하는 패턴을 제시합니다.
+    - 모델 자체도 배열(`AdderArrayModel[N]`)로 생성하여 여러 개의 독립적인 계산기를 한 번에 초기화합니다.
+
+### 3. Screen (이벤트 및 상태 관리)
+- **파일**: `src/screen.rs`
+- **설명**: 버튼 클릭 이벤트를 수신하여 화면 상태(`current_screen`)를 변경합니다.
+- **특징**:
+    - Slint의 콜백(버튼 클릭 등)을 Rust의 `in` 프로퍼티(`Sender<()>` -> `Receiver<()>`)로 매핑하여 이벤트를 처리합니다.
+    - Enum 값을 정수(int)로 변환하여 화면 인덱스를 제어합니다.
 
 ## 실행 방법
 
@@ -44,9 +54,9 @@ cargo run
 ```
 
 앱이 실행되면:
-1. "Start" 화면이 표시됩니다.
-2. 두 개의 덧셈 계산기 행이 나타납니다. 각각 독립적으로 동작하는지 확인해보세요.
-3. 버튼을 눌러 화면을 전환해 볼 수 있습니다.
+1. **Start Screen**: 기본 계산기 예제들과 화면 전환 버튼이 표시됩니다.
+2. **Interactive Elements**: 각 계산기의 입력값을 변경하면 즉시 합계가 업데이트되는 것을 확인할 수 있습니다.
+3. **Navigation**: "Confirm" 버튼을 눌러 결제 화면 등으로 전환하며 상태 관리를 테스트할 수 있습니다.
 
 ## 라이선스
 
