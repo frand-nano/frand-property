@@ -13,6 +13,7 @@ pub enum Direction {
 pub struct SlintModel {
     pub vis: Visibility,
     pub model_name: Ident,
+    pub array_len: Option<syn::Expr>,
     pub _colon_token: Token![:],
     pub type_name: Ident,
     pub _brace_token: token::Brace,
@@ -33,6 +34,13 @@ impl Parse for SlintModel {
         Ok(SlintModel {
             vis: input.parse()?,
             model_name: input.parse()?,
+            array_len: if input.peek(token::Bracket) {
+                let content;
+                syn::bracketed!(content in input);
+                Some(content.parse()?)
+            } else {
+                None
+            },
             _colon_token: input.parse()?,
             type_name: input.parse()?,
             _brace_token: syn::braced!(content in input),

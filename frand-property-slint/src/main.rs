@@ -23,8 +23,10 @@ async fn main() -> Result<(), slint::PlatformError> {
     let adder_model = AdderModel::<MainWindow>::new(&window);
     adder_model.start_system();
 
-    let adder_array_model = AdderArrayModel::<MainWindow>::new(&window);
-    adder_array_model.start_system();
+    let adder_array_models = AdderArrayModel::<MainWindow>::new(&window);
+    for model in adder_array_models {
+        model.start_system();
+    }
 
     window.run()?;
     Ok(())

@@ -8,13 +8,33 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
     let vis = &input.vis;
     let model_name = &input.model_name;
     let type_name = &input.type_name;
-    let struct_data_name = type_name; // Use raw name as Struct Name
-    let global_type_name = format_ident!("{}Global", type_name); // Append Global for Global Type
+    let struct_data_name = type_name; // 구조체 이름으로 원본 이름 사용
+    let global_type_name = format_ident!("{}Global", type_name); // Global 타입 이름에 'Global' 접미사 추가
 
+    // 1. 데이터 필드 생성
     let field_defs = generate_field_defs(input);
+    // 2. 구조체 초기화 필드 생성
     let struct_init_fields = generate_struct_init_fields(input);
     
+    // 3. 본문 로직 생성
     let body_logic = generate_body_logic(input, &global_type_name, struct_data_name);
+
+    let (return_type, return_expr) = if input.array_len.is_some() {
+        (
+            quote! { Vec<Self> },
+            quote! { #body_logic } // body_logic이 직접 Vec을 반환
+        )
+    } else {
+        (
+            quote! { Self },
+            quote! { 
+                #body_logic 
+                Self {
+                    #(#struct_init_fields),*
+                }
+            }
+        )
+    };
 
     quote! {
         #doc_comment
@@ -23,15 +43,11 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
         }
 
         impl<C: slint::ComponentHandle + 'static> #model_name<C> {
-            pub fn new(component: &C) -> Self where for<'a> #global_type_name<'a>: slint::Global<'a, C> {
+            pub fn new(component: &C) -> #return_type where for<'a> #global_type_name<'a>: slint::Global<'a, C> {
                 use slint::Model as _;
                 let weak = std::sync::Arc::new(component.as_weak());
 
-                #body_logic
-
-                Self {
-                    #(#struct_init_fields),*
-                }
+                #return_expr
             }
         }
     }
@@ -45,165 +61,14 @@ fn generate_body_logic(input: &SlintModel, global_type_name: &syn::Ident, struct
     let (data_fields, signal_fields): (Vec<_>, Vec<_>) = fields.into_iter()
         .partition(|f| !is_unit_ty(&f.ty));
 
-    // 2. 데이터 필드 로직 준비
-    //    - Diffing을 위해 Sender를 캡처하는 IN 속성 채널(Sender/Receiver) 인스턴스화
-    //    - 기본 데이터 생성 준비
-    let mut initial_field_assigns = Vec::new();
-    let mut receiver_extracts = Vec::new();
+    // 모델 배열 여부에 따라 로직 분기
+    let main_logic = if let Some(array_len) = &input.array_len {
+        generate_array_logic(array_len, struct_data_name, global_type_name, &data_fields, input)
+    } else {
+        generate_scalar_logic(struct_data_name, global_type_name, &data_fields)
+    };
     
-    // 부모 NotifyModel Diffing 로직 (스칼라)
-    let mut parent_diffing_checks = Vec::new();
-    // 중첩 NotifyModel 설정 로직 (배열)
-    let mut array_setups = Vec::new();
-    // Out 속성 로직
-    let mut out_prop_setups = Vec::new();
-
-    for f in &data_fields {
-        let f_name = &f.name;
-        // 배열인지 확인
-        if let Type::Array(arr) = &f.ty {
-             // 배열 로직
-             let len = &arr.len;
-             let f_prop_vec = format_ident!("{}_props", f_name);
-             let f_senders = format_ident!("{}_senders", f_name);
-             let f_senders_clone = format_ident!("{}_senders_clone", f_name); // 수정: 식별자 정의
-             
-             if f.direction == Direction::In {
-                 // 중첩 NotifyModel
-                 let inner_array_ident = format_ident!("{}_inner_array", f_name);
-                 let array_model_ident = format_ident!("{}_array_model", f_name);
-
-                 array_setups.push(quote! {
-                     let #f_prop_vec: Vec<_> = (0..#len).map(|_| {
-                         frand_property::Property::new(weak.clone(), Default::default(), |_, _| {})
-                     }).collect();
-                     let #f_senders: Vec<_> = #f_prop_vec.iter().map(|p| p.sender().clone()).collect();
-                     
-                     let #inner_array_ident = std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len]));
-                     let #f_senders_clone = #f_senders.clone();
-                     let #array_model_ident = frand_property::NotifyModel::new(#inner_array_ident, move |idx, val| {
-                         if let Some(sender) = #f_senders_clone.get(idx) {
-                             sender.send(val);
-                         }
-                     });
-                 });
-                 initial_field_assigns.push(quote! { 
-                     #f_name: slint::ModelRc::new(std::rc::Rc::new(#array_model_ident)) 
-                 });
-                 
-                 receiver_extracts.push(quote! {
-                     let #f_name: Vec<_> = #f_prop_vec.iter().map(|p| p.receiver().clone()).collect();
-                 });
-                 
-             } else {
-                 // Out 배열: Setter가 전역 모델->행->배열->행을 업데이트
-                 out_prop_setups.push(quote! {
-                     let #f_name: Vec<_> = (0..#len).map(|idx| {
-                         frand_property::Property::new(
-                             weak.clone(),
-                             Default::default(),
-                             move |c, v| {
-                                 c.upgrade_in_event_loop(move |c| {
-                                     let global = c.global::<#global_type_name>();
-                                     let model = global.get_data();
-                                     if let Some(data) = model.row_data(0) {
-                                         // ModelRc인 data.#f_name에 접근
-                                         data.#f_name.set_row_data(idx, v);
-                                     }
-                                 }).unwrap();
-                             }
-                         ).sender().clone()
-                     }).collect();
-                 });
-                 
-                 // VecModel로 구조체 초기화 (Out이므로 알림 불필요, 엄격한 Out)
-                 initial_field_assigns.push(quote! {
-                     #f_name: slint::ModelRc::new(std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len])))
-                 });
-             }
-             
-        } else {
-            // 스칼라 로직
-            let f_prop = format_ident!("{}_prop", f_name);
-            
-            if f.direction == Direction::In {
-                array_setups.push(quote! {
-                    let #f_prop = frand_property::Property::new(
-                        weak.clone(),
-                        Default::default(),
-                        |_, _| {}
-                    );
-                    let #f_name = #f_prop.sender().clone();
-                });
-                
-                initial_field_assigns.push(quote! { #f_name: Default::default() });
-                
-                parent_diffing_checks.push(quote! {
-                    if new_data.#f_name != old_data.#f_name {
-                        #f_name.send(new_data.#f_name.clone());
-                    }
-                });
-                
-                receiver_extracts.push(quote! {
-                    let #f_name = #f_prop.receiver().clone();
-                });
-            } else {
-                // 스칼라 Out
-                out_prop_setups.push(quote! {
-                     let #f_name = frand_property::Property::new(
-                         weak.clone(),
-                         Default::default(),
-                         move |c, v| {
-                             c.upgrade_in_event_loop(move |c| {
-                                 let global = c.global::<#global_type_name>();
-                                 let model = global.get_data();
-                                 if let Some(mut data) = model.row_data(0) {
-                                      data.#f_name = v;
-                                      model.set_row_data(0, data);
-                                 }
-                             }).unwrap();
-                         }
-                     ).sender().clone();
-                });
-                initial_field_assigns.push(quote! { #f_name: Default::default() });
-            }
-        }
-    }
-
-    if !data_fields.is_empty() {
-        setup_lines.push(quote! {
-            // 1. 중첩 배열 및 IN 스칼라 채널 설정
-            #(#array_setups)*
-            
-            // 2. 데이터 구조체 초기화
-            let initial_data = #struct_data_name {
-                #(#initial_field_assigns),*
-            };
-            
-            // 3. 부모 NotifyModel 설정 (스칼라용)
-            // RefCell에 초기 데이터를 캡처하여 상태 추적
-            let old_data = std::rc::Rc::new(std::cell::RefCell::new(initial_data.clone()));
-            let old_data_clone = old_data.clone();
-            
-            let inner_model = std::rc::Rc::new(slint::VecModel::from(vec![initial_data]));
-            let notify_model = frand_property::NotifyModel::new(inner_model, move |_row, new_data| {
-                let mut old_data = old_data_clone.borrow_mut();
-                
-                #(#parent_diffing_checks)*
-                
-                *old_data = new_data;
-            });
-            
-            component.global::<#global_type_name>().set_data(
-                 slint::ModelRc::new(std::rc::Rc::new(notify_model))
-            );
-            
-            // 4. OUT 속성 설정
-            #(#out_prop_setups)*
-        });
-    }
-    
-    setup_lines.push(quote! { #(#receiver_extracts)* });
+    setup_lines.push(main_logic);
 
     // 시그널 필드 (유닛)
     for f in &signal_fields {
@@ -211,10 +76,8 @@ fn generate_body_logic(input: &SlintModel, global_type_name: &syn::Ident, struct
          let f_prop = format_ident!("{}_prop", f_name);
          
          if f.direction == Direction::Out {
-              // 원본 코드에서 abort로 정의됨
               abort!(f_name, "`()` type cannot be used with `out` direction");
          } else {
-             // IN 유닛: Slint 콜백 -> Rust Receiver
              let on_ident = format_ident!("on_{}", f_name);
              setup_lines.push(quote! {
                  let #f_prop = frand_property::Property::new(
@@ -278,5 +141,303 @@ fn is_unit_ty(ty: &Type) -> bool {
         t.elems.is_empty()
     } else {
         false
+    }
+}
+
+fn generate_array_logic(
+    array_len: &syn::Expr,
+    struct_data_name: &syn::Ident,
+    global_type_name: &syn::Ident,
+    data_fields: &[&crate::parser::SlintModelField],
+    input: &SlintModel
+) -> TokenStream {
+    let mut setup_lines = Vec::new();
+    
+    // 1. 배열 단위 초기 데이터 준비
+    setup_lines.push(quote! {
+        let initial_data = #struct_data_name::default();
+        let model_vec = vec![initial_data; #array_len];
+        let inner_model = std::rc::Rc::new(slint::VecModel::from(model_vec));
+    });
+
+    // 2. NotifyModel 설정
+    setup_lines.push(quote! {
+         let old_data_vec = std::rc::Rc::new(std::cell::RefCell::new(vec![#struct_data_name::default(); #array_len]));
+         let old_data_vec_clone = old_data_vec.clone();
+         
+         let notify_model = frand_property::NotifyModel::new(inner_model, move |idx, new_data| {
+             let mut old_data_guard = old_data_vec_clone.borrow_mut();
+             if let Some(old_data) = old_data_guard.get_mut(idx) {
+                 *old_data = new_data;
+             }
+         });
+
+         component.global::<#global_type_name>().set_data(
+              slint::ModelRc::new(std::rc::Rc::new(notify_model))
+         );
+    });
+    
+    let mut field_diff_checks = Vec::new();
+
+    for f in data_fields {
+        let f_name = &f.name;
+         if f.direction == Direction::In {
+             let f_senders_vec_name = format_ident!("{}_senders_vec", f_name);
+             field_diff_checks.push(quote! {
+                 if new_data.#f_name != old_data.#f_name {
+                     if let Some(sender) = #f_senders_vec_name.get(idx) {
+                         sender.send(new_data.#f_name.clone());
+                     }
+                 }
+             });
+         }
+    }
+    
+    let mut sender_collectors_init = Vec::new();
+    let mut sender_move_to_callback = Vec::new();
+    
+    for f in data_fields {
+         let f_name = &f.name;
+         let f_senders_vec_name = format_ident!("{}_senders_vec", f_name);
+         
+         if f.direction == Direction::In {
+             sender_collectors_init.push(quote! { let mut #f_senders_vec_name = Vec::with_capacity(#array_len); });
+             sender_move_to_callback.push(quote! { let #f_senders_vec_name = #f_senders_vec_name.clone(); });
+         }
+    }
+
+    let mut per_row_field_inits = Vec::new();
+    
+    for f in data_fields {
+         let f_name = &f.name;
+         let f_prop = format_ident!("{}_prop", f_name);
+         
+         if f.direction == Direction::In {
+             let f_senders_vec_name = format_ident!("{}_senders_vec", f_name);
+             let in_prop_logic = generate_in_property();
+             
+             per_row_field_inits.push(quote! {
+                 let #f_prop = #in_prop_logic;
+                 #f_senders_vec_name.push(#f_prop.sender().clone());
+                 let #f_name = #f_prop.receiver().clone();
+             });
+         } else {
+             let setter = quote! {
+                  if let Some(mut data) = model.row_data(i) {
+                       data.#f_name = v;
+                       model.set_row_data(i, data);
+                  }
+             };
+             let out_prop_logic = generate_out_property(global_type_name, setter);
+             
+             per_row_field_inits.push(quote! {
+                 let #f_name = #out_prop_logic.sender().clone();
+             });
+         }
+    }
+
+    let struct_init_block = generate_struct_init_fields(input);
+    
+    // 루프 및 Sender 로직을 포함하여 설정 정의 재작성
+    setup_lines = Vec::new();
+    
+    setup_lines.push(quote! {
+         let mut result_structs = Vec::with_capacity(#array_len);
+         
+         #(#sender_collectors_init)*
+         
+         for i in 0..#array_len {
+             #(#per_row_field_inits)*
+             
+             result_structs.push(Self {
+                 #(#struct_init_block),*
+             });
+         }
+    });
+    
+    setup_lines.push(quote! {
+         let initial_data = #struct_data_name::default();
+         let inner_model = std::rc::Rc::new(slint::VecModel::from(vec![initial_data; #array_len]));
+         
+         let old_data_vec = std::rc::Rc::new(std::cell::RefCell::new(vec![#struct_data_name::default(); #array_len]));
+         let old_data_vec_clone = old_data_vec.clone();
+         
+         #(#sender_move_to_callback)*
+         
+         let notify_model = frand_property::NotifyModel::new(inner_model, move |idx, new_data| {
+             let mut old_data_guard = old_data_vec_clone.borrow_mut();
+             if idx < old_data_guard.len() {
+                let old_data = &mut old_data_guard[idx];
+                #(#field_diff_checks)*
+                *old_data = new_data;
+             }
+         });
+         
+         component.global::<#global_type_name>().set_data(
+              slint::ModelRc::new(std::rc::Rc::new(notify_model))
+         );
+         
+         result_structs
+    });
+    
+    quote! { #(#setup_lines)* }
+}
+
+fn generate_scalar_logic(
+    struct_data_name: &syn::Ident,
+    global_type_name: &syn::Ident,
+    data_fields: &[&crate::parser::SlintModelField]
+) -> TokenStream {
+    let mut initial_field_assigns = Vec::new();
+    let mut receiver_extracts = Vec::new();
+    let mut parent_diffing_checks = Vec::new();
+    let mut array_setups = Vec::new();
+    let mut out_prop_setups = Vec::new();
+
+    for f in data_fields {
+        let f_name = &f.name;
+        if let Type::Array(arr) = &f.ty {
+             let len = &arr.len;
+             let f_prop_vec = format_ident!("{}_props", f_name);
+             let f_senders = format_ident!("{}_senders", f_name);
+             let f_senders_clone = format_ident!("{}_senders_clone", f_name);
+             
+             if f.direction == Direction::In {
+                 let inner_array_ident = format_ident!("{}_inner_array", f_name);
+                 let array_model_ident = format_ident!("{}_array_model", f_name);
+                 let in_prop_logic = generate_in_property();
+
+                 array_setups.push(quote! {
+                     let #f_prop_vec: Vec<_> = (0..#len).map(|_| {
+                         #in_prop_logic
+                     }).collect();
+                     let #f_senders: Vec<_> = #f_prop_vec.iter().map(|p| p.sender().clone()).collect();
+                     
+                     let #inner_array_ident = std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len]));
+                     let #f_senders_clone = #f_senders.clone();
+                     let #array_model_ident = frand_property::NotifyModel::new(#inner_array_ident, move |idx, val| {
+                         if let Some(sender) = #f_senders_clone.get(idx) {
+                             sender.send(val);
+                         }
+                     });
+                 });
+                 initial_field_assigns.push(quote! { 
+                     #f_name: slint::ModelRc::new(std::rc::Rc::new(#array_model_ident)) 
+                 });
+                 
+                 receiver_extracts.push(quote! {
+                     let #f_name: Vec<_> = #f_prop_vec.iter().map(|p| p.receiver().clone()).collect();
+                 });
+                 
+             } else {
+                 let setter = quote! {
+                     if let Some(data) = model.row_data(0) {
+                         data.#f_name.set_row_data(idx, v);
+                     }
+                 };
+                 let out_prop_logic = generate_out_property(global_type_name, setter);
+                 
+                 out_prop_setups.push(quote! {
+                     let #f_name: Vec<_> = (0..#len).map(|idx| {
+                         #out_prop_logic.sender().clone()
+                     }).collect();
+                 });
+                 
+                 initial_field_assigns.push(quote! {
+                     #f_name: slint::ModelRc::new(std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len])))
+                 });
+             }
+             
+        } else {
+            let f_prop = format_ident!("{}_prop", f_name);
+            
+            if f.direction == Direction::In {
+                let in_prop_logic = generate_in_property();
+                
+                array_setups.push(quote! {
+                    let #f_prop = #in_prop_logic;
+                    let #f_name = #f_prop.sender().clone();
+                });
+                
+                initial_field_assigns.push(quote! { #f_name: Default::default() });
+                
+                parent_diffing_checks.push(quote! {
+                    if new_data.#f_name != old_data.#f_name {
+                        #f_name.send(new_data.#f_name.clone());
+                    }
+                });
+                
+                receiver_extracts.push(quote! {
+                    let #f_name = #f_prop.receiver().clone();
+                });
+            } else {
+                let setter = quote! {
+                     if let Some(mut data) = model.row_data(0) {
+                          data.#f_name = v;
+                          model.set_row_data(0, data);
+                     }
+                };
+                let out_prop_logic = generate_out_property(global_type_name, setter);
+                
+                out_prop_setups.push(quote! {
+                     let #f_name = #out_prop_logic.sender().clone();
+                });
+                initial_field_assigns.push(quote! { #f_name: Default::default() });
+            }
+        }
+    }
+
+    let mut setup_lines = Vec::new();
+    if !data_fields.is_empty() {
+        setup_lines.push(quote! {
+            #(#array_setups)*
+            
+            let initial_data = #struct_data_name {
+                #(#initial_field_assigns),*
+            };
+            
+            let old_data = std::rc::Rc::new(std::cell::RefCell::new(initial_data.clone()));
+            let old_data_clone = old_data.clone();
+            
+            let inner_model = std::rc::Rc::new(slint::VecModel::from(vec![initial_data]));
+            let notify_model = frand_property::NotifyModel::new(inner_model, move |_row, new_data| {
+                let mut old_data = old_data_clone.borrow_mut();
+                
+                #(#parent_diffing_checks)*
+                
+                *old_data = new_data;
+            });
+            
+            component.global::<#global_type_name>().set_data(
+                 slint::ModelRc::new(std::rc::Rc::new(notify_model))
+            );
+            
+            #(#out_prop_setups)*
+        });
+    }
+    
+    setup_lines.push(quote! { #(#receiver_extracts)* });
+    quote! { #(#setup_lines)* }
+}
+
+fn generate_in_property() -> TokenStream {
+    quote! {
+        frand_property::Property::new(weak.clone(), Default::default(), |_, _| {})
+    }
+}
+
+fn generate_out_property(global_type_name: &syn::Ident, setter_block: TokenStream) -> TokenStream {
+    quote! {
+        frand_property::Property::new(
+             weak.clone(),
+             Default::default(),
+             move |c, v| {
+                 c.upgrade_in_event_loop(move |c| {
+                     let global = c.global::<#global_type_name>();
+                     let model = global.get_data();
+                     #setter_block
+                 }).unwrap();
+             }
+         )
     }
 }
