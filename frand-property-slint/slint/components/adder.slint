@@ -1,55 +1,59 @@
 import { Button, VerticalBox, HorizontalBox } from "std-widgets.slint";
 
-export global AdderData {
-    in-out property <[int]> x;
-    in-out property <[int]> y;
-    in property <int> sum;
+export struct AdderData {
+    x: int,
+    y: int,
+    sum: int,
+}
+
+export global AdderDataGlobal {
+    in-out property <[AdderData]> data;
 }
 
 export component Adder inherits Rectangle {
     VerticalBox {
         Text {
-            text: "X: " + AdderData.x[0];
+            text: "X: " + AdderDataGlobal.data[0].x;
         }
 
         HorizontalBox {
             Button {
                 text: "+";
                 clicked => {
-                    AdderData.x[0] += 1;
+                    AdderDataGlobal.data[0].x += 1;
                 }
             }
 
             Button {
                 text: "-";
                 clicked => {
-                    AdderData.x[0] -= 1;
+                    AdderDataGlobal.data[0].x -= 1;
                 }
             }
         }
 
         Text {
-            text: "Y: " + AdderData.y[0];
+            text: "Y: " + AdderDataGlobal.data[0].y;
         }
 
         HorizontalBox {
             Button {
                 text: "+";
                 clicked => {
-                    AdderData.y[0] += 1;
+                    AdderDataGlobal.data[0].y += 1;
                 }
             }
 
             Button {
                 text: "-";
                 clicked => {
-                    AdderData.y[0] -= 1;
+                    AdderDataGlobal.data[0].y -= 1;
                 }
             }
         }
 
         Text {
-            text: "Sum: " + AdderData.sum;
+            text: "Sum: " + AdderDataGlobal.data[0].sum;
             font-size: 24px;
             horizontal-alignment: center;
         }

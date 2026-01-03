@@ -1,9 +1,13 @@
 import { Button, VerticalBox, HorizontalBox } from "std-widgets.slint";
 
-export global AdderArrayData {
-    in-out property <[int]> x;
-    in-out property <[int]> y;
-    in property <[int]> sum;
+export struct AdderArrayData {
+    x: [int],
+    y: [int],
+    sum: [int],
+}
+
+export global AdderArrayDataGlobal {
+    in-out property <[AdderArrayData]> data;
 }
 
 export component AdderArray inherits Rectangle {
@@ -15,47 +19,47 @@ export component AdderArray inherits Rectangle {
         }
 
         Text {
-            text: "X: " + AdderArrayData.x[index];
+            text: "X: " + AdderArrayDataGlobal.data[0].x[index];
         }
 
         HorizontalBox {
             Button {
                 text: "+";
                 clicked => {
-                    AdderArrayData.x[index] += 1;
+                    AdderArrayDataGlobal.data[0].x[index] += 1;
                 }
             }
 
             Button {
                 text: "-";
                 clicked => {
-                    AdderArrayData.x[index] -= 1;
+                    AdderArrayDataGlobal.data[0].x[index] -= 1;
                 }
             }
         }
 
         Text {
-            text: "Y: " + AdderArrayData.y[index];
+            text: "Y: " + AdderArrayDataGlobal.data[0].y[index];
         }
 
         HorizontalBox {
             Button {
                 text: "+";
                 clicked => {
-                    AdderArrayData.y[index] += 1;
+                    AdderArrayDataGlobal.data[0].y[index] += 1;
                 }
             }
 
             Button {
                 text: "-";
                 clicked => {
-                    AdderArrayData.y[index] -= 1;
+                    AdderArrayDataGlobal.data[0].y[index] -= 1;
                 }
             }
         }
 
         Text {
-            text: "Sum: " + AdderArrayData.sum[index];
+            text: "Sum: " + AdderArrayDataGlobal.data[0].sum[index];
             font-size: 24px;
             horizontal-alignment: center;
         }

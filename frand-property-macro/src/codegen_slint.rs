@@ -1,67 +1,51 @@
 use quote::quote;
-use syn::{Type, Expr, Lit};
-use crate::parser::{Direction, SlintModel};
+use syn::Type;
+use crate::parser::{SlintModel};
 
 pub fn generate(input: &SlintModel) -> String {
-    let global_name = input.type_name.to_string();
+    let global_name = format!("{}Global", input.type_name);
+    let struct_name = input.type_name.to_string();
 
-    let mut data_lines = Vec::new();
+    let mut struct_fields = Vec::new();
+    let mut global_fields = Vec::new();
+    let mut data_prop_emitted = false;
 
     for field in &input.fields {
-        let name = field.name.to_string();
-        let kebab_name = to_kebab_case(&name);
-        
-        let (slint_type, _array_len) = if let Type::Array(arr) = &field.ty {
-            let elem_type = rust_type_to_slint_type(&arr.elem);
+        let kebab_name = field.name.to_string().replace("_", "-");
+        let slint_type = rust_type_to_slint_type(&field.ty);
 
-            let len = if let Expr::Lit(lit) = &arr.len {
-                if let Lit::Int(lit_int) = &lit.lit {
-                    lit_int.base10_parse::<usize>().unwrap_or(0)
-                } else { 0 }
-            } else { 0 }; // 리터럴이 아닌 길이의 경우 대체값
-
-            (format!("[{}]", elem_type), Some(len))
+        if is_unit_ty(&field.ty) {
+             global_fields.push(format!("    callback {kebab_name}();"));
         } else {
-            (rust_type_to_slint_type(&field.ty), None)
-        };
-
-        match field.direction {
-            Direction::Out => {
-                data_lines.push(
-                    format!("    in property <{slint_type}> {kebab_name};")
-                );
+             struct_fields.push(
+                format!("    {kebab_name}: {slint_type},")
+            );
+            
+            if !data_prop_emitted {
+                 global_fields.push(format!("    in-out property <[{struct_name}]> data;"));
+                 data_prop_emitted = true;
             }
-            Direction::In => {
-                if slint_type == "void" {
-                     data_lines.push(
-                        format!("    callback {kebab_name}();")
-                    );
-                } else {
-                    data_lines.push(
-                        format!("    in-out property <[{slint_type}]> {kebab_name};")
-                    );
-                }
-            }
-
         }
-
     }
 
-    let data_doc = format!(
-        "export global {global_name} {{\n{}\n}}",
-        data_lines.join("\n")
+    let struct_def = format!(
+        "export struct {} {{\n{}\n}}",
+        struct_name,
+        struct_fields.join("\n")
     );
 
-    format!(" 생성된 Slint 코드:\n```slint\n{data_doc}\n```")
-}
+    let global_def = format!(
+        "export global {} {{\n{}\n}}",
+        global_name,
+        global_fields.join("\n")
+    );
 
-fn to_kebab_case(s: &str) -> String {
-    s.replace('_', "-")
+    format!(" 생성된 Slint 코드:\n```slint\n{struct_def}\n\n{global_def}\n```")
 }
 
 fn rust_type_to_slint_type(ty: &Type) -> String {
     let type_str = quote!(#ty).to_string();
-    // 매칭을 위해 타입 문자열에서 공백 제거
+// 매칭을 위해 타입 문자열에서 공백 제거
     let type_str_clean = type_str.replace(" ", "");
     
     
@@ -79,5 +63,13 @@ fn rust_type_to_slint_type(ty: &Type) -> String {
         "()" => "void".to_string(),
         // 기본 폴백
         _ => type_str,
+    }
+}
+
+fn is_unit_ty(ty: &Type) -> bool {
+    if let Type::Tuple(t) = ty {
+        t.elems.is_empty()
+    } else {
+        false
     }
 }

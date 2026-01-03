@@ -1,4 +1,5 @@
 use frand_property::*;
+use crate::AdderArrayDataGlobal;
 use crate::AdderArrayData;
 
 const PROP_LEN: usize = 2;

@@ -1,4 +1,5 @@
 use frand_property::*;
+use crate::ScreenDataGlobal;
 use crate::ScreenData;
 use crate::ScreenVariant;
 

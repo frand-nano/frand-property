@@ -1,8 +1,11 @@
-import { ScreenData, Screen } from "screen/screen.slint";
-import { AdderData } from "components/adder.slint";
-import { AdderArrayData } from "components/adder_array.slint";
+import { ScreenData, ScreenDataGlobal, Screen } from "screen/screen.slint";
+import { AdderData, AdderDataGlobal } from "components/adder.slint";
+import {
+    AdderArrayData,
+    AdderArrayDataGlobal,
+} from "components/adder_array.slint";
 
-export { ScreenData, AdderData, AdderArrayData }
+export { ScreenData, ScreenDataGlobal, AdderData, AdderDataGlobal, AdderArrayData, AdderArrayDataGlobal }
 
 export component MainWindow inherits Window {
     title: "Main";

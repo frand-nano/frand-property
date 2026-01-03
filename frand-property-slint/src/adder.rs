@@ -1,4 +1,5 @@
 use frand_property::*;
+use crate::AdderDataGlobal;
 use crate::AdderData;
 
 slint_model! {

@@ -6,18 +6,25 @@ export enum ScreenVariant {
     Pay
 }
 
-export global ScreenData {
-    in property <ScreenVariant> current-screen;
+export struct ScreenData {
+    current-screen: ScreenVariant,
+}
+
+export global ScreenDataGlobal {
+    in-out property <[ScreenData]> data;
     callback confirm-start();
     callback cancel-pay();
 }
 
 export component Screen inherits Rectangle {
-    if ScreenData.current-screen == ScreenVariant.Start: StartScreen {
-        on-confirm => { ScreenData.confirm-start() }
+    if ScreenDataGlobal.data[0].current-screen == ScreenVariant.Start: StartScreen {
+        on-confirm => {
+            ScreenDataGlobal.confirm-start()
+        }
     }
-    
-    if ScreenData.current-screen == ScreenVariant.Pay: PayScreen {
-        on-cancel => { ScreenData.cancel-pay() }    
+    if ScreenDataGlobal.data[0].current-screen == ScreenVariant.Pay: PayScreen {
+        on-cancel => {
+            ScreenDataGlobal.cancel-pay()
+        }
     }
 }
