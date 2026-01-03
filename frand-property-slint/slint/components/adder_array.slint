@@ -1,8 +1,7 @@
 import { Button, VerticalBox, HorizontalBox } from "std-widgets.slint";
 
 export struct AdderArrayData {
-    x: int,
-    y: int,
+    values: [int],
     sum: int,
 }
 
@@ -18,42 +17,24 @@ export component AdderArray inherits Rectangle {
             text: "AdderArray[" + index + "]";
         }
 
-        Text {
-            text: "X: " + AdderArrayDataGlobal.data[index].x;
-        }
-
-        HorizontalBox {
-            Button {
-                text: "+";
-                clicked => {
-                    AdderArrayDataGlobal.data[index].x += 1;
-                }
+        for value[i] in AdderArrayDataGlobal.data[index].values: VerticalBox {
+            Text {
+                text: "Value[" + i + "]: " + value;
             }
 
-            Button {
-                text: "-";
-                clicked => {
-                    AdderArrayDataGlobal.data[index].x -= 1;
+            HorizontalBox {
+                Button {
+                    text: "+";
+                    clicked => {
+                        AdderArrayDataGlobal.data[index].values[i] += 1;
+                    }
                 }
-            }
-        }
 
-        Text {
-            text: "Y: " + AdderArrayDataGlobal.data[index].y;
-        }
-
-        HorizontalBox {
-            Button {
-                text: "+";
-                clicked => {
-                    AdderArrayDataGlobal.data[index].y += 1;
-                }
-            }
-
-            Button {
-                text: "-";
-                clicked => {
-                    AdderArrayDataGlobal.data[index].y -= 1;
+                Button {
+                    text: "-";
+                    clicked => {
+                        AdderArrayDataGlobal.data[index].values[i] -= 1;
+                    }
                 }
             }
         }

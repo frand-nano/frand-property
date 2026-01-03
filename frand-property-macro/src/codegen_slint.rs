@@ -44,11 +44,16 @@ pub fn generate(input: &SlintModel) -> String {
 }
 
 fn rust_type_to_slint_type(ty: &Type) -> String {
+    if let Type::Array(type_array) = ty {
+        let inner_type = rust_type_to_slint_type(&type_array.elem);
+        return format!("[{}]", inner_type);
+    }
+
     let type_str = quote!(#ty).to_string();
-// 매칭을 위해 타입 문자열에서 공백 제거
+
+    // 매칭을 위해 타입 문자열에서 공백 제거
     let type_str_clean = type_str.replace(" ", "");
-    
-    
+
     match type_str_clean.as_str() {
         // 정수형
         "i8" | "i16" | "i32" | "i64" | "isize" => "int".to_string(),

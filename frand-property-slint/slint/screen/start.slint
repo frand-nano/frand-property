@@ -1,6 +1,6 @@
 import { Button, VerticalBox } from "std-widgets.slint";
 import { Adder } from "../components/adder.slint";
-import { AdderArray } from "../components/adder_array.slint";
+import { AdderArray, AdderArrayDataGlobal } from "../components/adder_array.slint";
 
 export component StartScreen inherits Rectangle {
     callback on-confirm();
@@ -14,9 +14,9 @@ export component StartScreen inherits Rectangle {
 
         Adder { }
 
-        AdderArray { index: 0; }
-
-        AdderArray { index: 1; }
+        for item[i] in AdderArrayDataGlobal.data: AdderArray {
+            index: i;
+        }
 
         Button {
             text: "Confirm";

@@ -1567,6 +1567,7 @@ name = "frand-property-slint"
 version = "0.2.2"
 dependencies = [
  "frand-property",
+ "futures",
  "log",
  "simplelog",
  "slint",
