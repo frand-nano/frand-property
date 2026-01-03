@@ -9,7 +9,14 @@ export global RepeaterDataGlobal {
     in-out property <[RepeaterData]> data;
 }
 
-export component Repeater inherits Rectangle {
+component RepeaterDataComponent inherits Rectangle {
+    in-out property <int> global-index: 0;
+    in-out property <string> global-text: RepeaterDataGlobal.data[global-index].text;
+    changed global-text => { RepeaterDataGlobal.data[global-index].text = self.global-text; }
+    out property <string> global-repeated: RepeaterDataGlobal.data[global-index].repeated;
+}
+
+export component Repeater inherits RepeaterDataComponent {
     VerticalBox {
         Text {
             text: "Repeater";
@@ -25,15 +32,12 @@ export component Repeater inherits Rectangle {
 
             LineEdit {
                 placeholder-text: "Enter text (max 20 chars)";
-                text: RepeaterDataGlobal.data[0].text;
-                edited => {
-                    RepeaterDataGlobal.data[0].text = self.text;
-                }
+                text <=> root.global-text;
             }
         }
 
         Text {
-            text: "Repeated: " + RepeaterDataGlobal.data[0].repeated;
+            text: "Repeated: " + root.global-repeated;
             font-size: 16px;
         }
     }

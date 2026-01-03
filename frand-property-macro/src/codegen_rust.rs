@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Type;
 use crate::parser::{Direction, SlintModel};
-use proc_macro_error::abort;
+
 
 pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
     let vis = &input.vis;
@@ -101,38 +101,13 @@ fn generate_body_logic(input: &SlintModel, global_type_name: &syn::Ident, struct
     let (data_fields, signal_fields): (Vec<_>, Vec<_>) = fields.into_iter()
         .partition(|f| !is_unit_ty(&f.ty));
 
-    let main_logic = if let Some(array_len) = &input.array_len {
-        generate_array_logic(array_len, struct_data_name, global_type_name, &data_fields, input)
+    if let Some(array_len) = &input.array_len {
+        generate_array_logic(array_len, struct_data_name, global_type_name, &data_fields, &signal_fields, input)
     } else {
-        generate_scalar_logic(struct_data_name, global_type_name, &data_fields, input)
-    };
-
-    let mut signal_setup = Vec::new();
-    for f in &signal_fields {
-         let f_name = &f.name;
-         let f_prop = format_ident!("{}_prop", f_name);
-         
-         if f.direction == Direction::Out {
-              abort!(f_name, "`()` type cannot be used with `out` direction");
-         } else {
-             let on_ident = format_ident!("on_{}", f_name);
-             signal_setup.push(quote! {
-                 let #f_prop = frand_property::Property::new(
-                     weak.clone(),
-                     Default::default(),
-                     |_, _| {}
-                 );
-                 let sender = #f_prop.sender().clone();
-                 component.global::<#global_type_name>().#on_ident(move || { sender.notify(); });
-                 let #f_name = #f_prop.receiver().clone();
-             });
-         }
+        generate_scalar_logic(struct_data_name, global_type_name, &data_fields, &signal_fields, input)
     }
 
-    quote! {
-        #(#signal_setup)*
-        #main_logic
-    }
+
 }
 
 fn generate_array_logic(
@@ -140,6 +115,7 @@ fn generate_array_logic(
     struct_data_name: &syn::Ident,
     global_type_name: &syn::Ident,
     data_fields: &[&crate::parser::SlintModelField],
+    signal_fields: &[&crate::parser::SlintModelField],
     input: &SlintModel
 ) -> TokenStream {
     let struct_init_ids = generate_struct_init_fields(input);
@@ -147,6 +123,43 @@ fn generate_array_logic(
 
     let mut slint_data_fields_init = Vec::new();
     let mut rust_struct_fields_init = Vec::new();
+
+    let mut signal_init_block = Vec::new();
+
+    for f in signal_fields {
+        let f_name = &f.name;
+        
+        if f.direction == Direction::Out {
+             proc_macro_error::abort!(f_name, "`()` type cannot be used with `out` direction");
+        }
+        
+        let f_senders = format_ident!("{}_senders", f_name);
+        let f_receivers = format_ident!("{}_receivers", f_name);
+        let on_ident = format_ident!("on_{}", f_name);
+        
+        signal_init_block.push(quote! {
+            let mut #f_senders = Vec::with_capacity(#array_len);
+            let mut #f_receivers = Vec::with_capacity(#array_len);
+            for _ in 0..#array_len {
+                 let prop = frand_property::Property::new(weak.clone(), Default::default(), |_,_| {});
+                 #f_senders.push(prop.sender().clone());
+                 #f_receivers.push(prop.receiver().clone());
+            }
+            
+            let senders_clone = #f_senders.clone();
+            component.global::<#global_type_name>().#on_ident(move |idx| {
+                if let Some(s) = senders_clone.get(idx as usize) {
+                    s.notify();
+                }
+            });
+        });
+        
+        loop_body.push(quote! {
+            let #f_name = #f_receivers[i].clone();
+        });
+        
+        rust_struct_fields_init.push(quote! { #f_name });
+    }
 
     for f in data_fields {
         let f_name = &f.name;
@@ -279,6 +292,9 @@ fn generate_array_logic(
         let mut rust_models = Vec::with_capacity(#array_len);
         let mut slint_data = Vec::with_capacity(#array_len);
         #(#scalar_vectors_init)*
+        
+        // 시그널 필드 설정 (배열)
+        #(#signal_init_block)*
 
         for i in 0..#array_len {
             #(#loop_body)*
@@ -322,12 +338,36 @@ fn generate_scalar_logic(
     struct_data_name: &syn::Ident,
     global_type_name: &syn::Ident,
     data_fields: &[&crate::parser::SlintModelField],
+    signal_fields: &[&crate::parser::SlintModelField],
     input: &SlintModel
 ) -> TokenStream {
     let mut setups = Vec::new();
     let mut slint_init_fields = Vec::new();
     let struct_init_fields = generate_struct_init_fields(input);
     let mut parent_diff_checks = Vec::new();
+    
+
+
+    for f in signal_fields {
+         let f_name = &f.name;
+         let f_prop = format_ident!("{}_prop", f_name);
+         
+         if f.direction == Direction::Out {
+              proc_macro_error::abort!(f_name, "`()` type cannot be used with `out` direction");
+         } else {
+             let on_ident = format_ident!("on_{}", f_name);
+             setups.push(quote! {
+                 let #f_prop = frand_property::Property::new(
+                     weak.clone(),
+                     Default::default(),
+                     |_, _| {}
+                 );
+                 let sender = #f_prop.sender().clone();
+                 component.global::<#global_type_name>().#on_ident(move |_| { sender.notify(); });
+                 let #f_name = #f_prop.receiver().clone();
+             });
+         }
+    }
 
     for f in data_fields {
         let f_name = &f.name;
@@ -365,7 +405,7 @@ fn generate_scalar_logic(
                      #f_name: slint::ModelRc::new(std::rc::Rc::new(notify_model))
                  });
              } else {
-                 // Scalar Out Array
+                 // 스칼라 Out 배열
                  let resolved_elem_ty = resolve_type(&arr.elem);
                  setups.push(quote! {
                     let mut #f_senders = Vec::with_capacity(#len);
@@ -498,7 +538,7 @@ fn generate_out_property_with_index(global_type_name: &syn::Ident, setter_block:
                  c.upgrade_in_event_loop(move |c| {
                      let global = c.global::<#global_type_name>();
                      let model = global.get_data();
-                     // i is captured from loop
+                     // 루프에서 i 캡처
                      #setter_block
                  }).unwrap();
              }

@@ -9,15 +9,20 @@ export global AdderArrayDataGlobal {
     in-out property <[AdderArrayData]> data;
 }
 
-export component AdderArray inherits Rectangle {
-    in property <int> index;
+component AdderArrayDataComponent inherits Rectangle {
+    in-out property <int> global-index: 0;
+    in-out property <[int]> global-values: AdderArrayDataGlobal.data[global-index].values;
+    changed global-values => { AdderArrayDataGlobal.data[global-index].values = self.global-values; }
+    out property <int> global-sum: AdderArrayDataGlobal.data[global-index].sum;
+}
 
+export component AdderArray inherits AdderArrayDataComponent {
     VerticalBox {
         Text {
-            text: "AdderArray[" + index + "]";
+            text: "AdderArray[" + root.global-index + "]";
         }
 
-        for value[i] in AdderArrayDataGlobal.data[index].values: VerticalBox {
+        for value[i] in root.global-values: VerticalBox {
             Text {
                 text: "Value[" + i + "]: " + value;
             }
@@ -26,21 +31,21 @@ export component AdderArray inherits Rectangle {
                 Button {
                     text: "+";
                     clicked => {
-                        AdderArrayDataGlobal.data[index].values[i] += 1;
+                        root.global-values[i] += 1;
                     }
                 }
 
                 Button {
                     text: "-";
                     clicked => {
-                        AdderArrayDataGlobal.data[index].values[i] -= 1;
+                        root.global-values[i] -= 1;
                     }
                 }
             }
         }
 
         Text {
-            text: "Sum: " + AdderArrayDataGlobal.data[index].sum;
+            text: "Sum: " + root.global-sum;
             font-size: 24px;
             horizontal-alignment: center;
         }

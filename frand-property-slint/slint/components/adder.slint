@@ -10,50 +10,59 @@ export global AdderDataGlobal {
     in-out property <[AdderData]> data;
 }
 
-export component Adder inherits Rectangle {
+component AdderDataComponent inherits Rectangle {
+    in-out property <int> global-index: 0;
+    in-out property <int> global-x: AdderDataGlobal.data[global-index].x;
+    changed global-x => { AdderDataGlobal.data[global-index].x = self.global-x; }
+    in-out property <int> global-y: AdderDataGlobal.data[global-index].y;
+    changed global-y => { AdderDataGlobal.data[global-index].y = self.global-y; }
+    out property <int> global-sum: AdderDataGlobal.data[global-index].sum;
+}
+
+export component Adder inherits AdderDataComponent {
     VerticalBox {
         Text {
-            text: "X: " + AdderDataGlobal.data[0].x;
+            text: "X: " + root.global-x;
         }
 
         HorizontalBox {
             Button {
                 text: "+";
                 clicked => {
-                    AdderDataGlobal.data[0].x += 1;
+                    root.global-x += 1;
                 }
             }
 
             Button {
                 text: "-";
                 clicked => {
-                    AdderDataGlobal.data[0].x -= 1;
+                    root.global-x -= 1;
                 }
             }
         }
 
         Text {
-            text: "Y: " + AdderDataGlobal.data[0].y;
+            text: "Y: " + root.global-y;
         }
 
         HorizontalBox {
             Button {
                 text: "+";
                 clicked => {
-                    AdderDataGlobal.data[0].y += 1;
+                    root.global-y += 1;
                 }
             }
 
             Button {
                 text: "-";
                 clicked => {
-                    AdderDataGlobal.data[0].y -= 1;
+                    root.global-y -= 1;
                 }
             }
         }
 
         Text {
-            text: "Sum: " + AdderDataGlobal.data[0].sum;
+            text: "Sum: " + root.global-sum;
             font-size: 24px;
             horizontal-alignment: center;
         }

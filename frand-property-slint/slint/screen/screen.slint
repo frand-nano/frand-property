@@ -12,19 +12,28 @@ export struct ScreenData {
 
 export global ScreenDataGlobal {
     in-out property <[ScreenData]> data;
-    callback confirm-start();
-    callback cancel-pay();
+    callback confirm-start(int);
+    callback cancel-pay(int);
 }
 
-export component Screen inherits Rectangle {
-    if ScreenDataGlobal.data[0].current-screen == ScreenVariant.Start: StartScreen {
+component ScreenDataComponent inherits Rectangle {
+    in-out property <int> global-index: 0;
+    out property <ScreenVariant> global-current-screen: ScreenDataGlobal.data[global-index].current-screen;
+    callback global-confirm-start;
+    global-confirm-start => { ScreenDataGlobal.confirm-start(global-index); }
+    callback global-cancel-pay;
+    global-cancel-pay => { ScreenDataGlobal.cancel-pay(global-index); }
+}
+
+export component Screen inherits ScreenDataComponent {
+    if root.global-current-screen == ScreenVariant.Start: StartScreen {
         on-confirm => {
-            ScreenDataGlobal.confirm-start()
+            root.global-confirm-start();
         }
     }
-    if ScreenDataGlobal.data[0].current-screen == ScreenVariant.Pay: PayScreen {
+    if root.global-current-screen == ScreenVariant.Pay: PayScreen {
         on-cancel => {
-            ScreenDataGlobal.cancel-pay()
+            root.global-cancel-pay();
         }
     }
 }
