@@ -3,6 +3,7 @@ slint::include_modules!();
 mod screen;
 mod adder;
 mod adder_array;
+mod repeater;
 
 use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
 use frand_property::System;
@@ -27,6 +28,9 @@ async fn main() -> Result<(), slint::PlatformError> {
     for model in adder_array_models {
         model.start_system();
     }
+
+    let repeater_model = crate::repeater::RepeaterModel::<MainWindow>::new(&window);
+    repeater_model.start_system();
 
     window.run()?;
     Ok(())

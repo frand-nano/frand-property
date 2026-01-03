@@ -1,0 +1,40 @@
+import { LineEdit, VerticalBox, HorizontalBox } from "std-widgets.slint";
+
+export struct RepeaterData {
+    text: string,
+    repeated: string,
+}
+
+export global RepeaterDataGlobal {
+    in-out property <[RepeaterData]> data;
+}
+
+export component Repeater inherits Rectangle {
+    VerticalBox {
+        Text {
+            text: "Repeater";
+            font-size: 20px;
+            horizontal-alignment: center;
+        }
+
+        HorizontalBox {
+            Text {
+                text: "Input:";
+                vertical-alignment: center;
+            }
+
+            LineEdit {
+                placeholder-text: "Enter text (max 20 chars)";
+                text: RepeaterDataGlobal.data[0].text;
+                edited => {
+                    RepeaterDataGlobal.data[0].text = self.text;
+                }
+            }
+        }
+
+        Text {
+            text: "Repeated: " + RepeaterDataGlobal.data[0].repeated;
+            font-size: 16px;
+        }
+    }
+}

@@ -56,10 +56,11 @@ fn generate_field_defs(input: &SlintModel) -> Vec<TokenStream> {
 
         if let Type::Array(arr) = f_ty {
             let elem_ty = &arr.elem;
+            let resolved_elem_ty = resolve_type(elem_ty);
             if *direction == Direction::Out {
-                quote! { #f_vis #f_name: Vec<frand_property::Sender<slint::Weak<C>, #elem_ty>> }
+                quote! { #f_vis #f_name: Vec<frand_property::Sender<slint::Weak<C>, #resolved_elem_ty>> }
             } else {
-                 quote! { #f_vis #f_name: Vec<frand_property::Receiver<#elem_ty>> }
+                 quote! { #f_vis #f_name: Vec<frand_property::Receiver<#resolved_elem_ty>> }
             }
         } else {
             if is_unit {
@@ -69,10 +70,11 @@ fn generate_field_defs(input: &SlintModel) -> Vec<TokenStream> {
                      quote! { #f_vis #f_name: frand_property::Receiver<()> }
                 }
             } else {
+                let resolved_ty = resolve_type(f_ty);
                 if *direction == Direction::Out {
-                    quote! { #f_vis #f_name: frand_property::Sender<slint::Weak<C>, #f_ty> }
+                    quote! { #f_vis #f_name: frand_property::Sender<slint::Weak<C>, #resolved_ty> }
                 } else {
-                    quote! { #f_vis #f_name: frand_property::Receiver<#f_ty> }
+                    quote! { #f_vis #f_name: frand_property::Receiver<#resolved_ty> }
                 }
             }
         }
@@ -158,12 +160,13 @@ fn generate_array_logic(
             
             if f.direction == Direction::In {
                 // 배열 IN: 각 요소에 대해 Property 생성
+                let resolved_elem_ty = resolve_type(&arr.elem);
                 loop_body.push(quote! {
                     let mut #f_senders = Vec::with_capacity(#len);
                     let mut #f_receivers = Vec::with_capacity(#len);
 
                     for _ in 0..#len {
-                        let prop = frand_property::Property::new(weak.clone(), Default::default(), |_, _| {});
+                        let prop = frand_property::Property::<slint::Weak<C>, #resolved_elem_ty>::new(weak.clone(), Default::default(), |_, _| {});
                         #f_senders.push(prop.sender().clone());
                         #f_receivers.push(prop.receiver().clone());
                     }
@@ -184,10 +187,11 @@ fn generate_array_logic(
                     #f_name: slint::ModelRc::new(std::rc::Rc::new(notify_model))
                 });
             } else {
+                let resolved_elem_ty = resolve_type(&arr.elem);
                 loop_body.push(quote! {
                     let mut #f_senders = Vec::with_capacity(#len);
                     for j in 0..#len {
-                        let prop = frand_property::Property::new(
+                        let prop = frand_property::Property::<slint::Weak<C>, #resolved_elem_ty>::new(
                              weak.clone(),
                              Default::default(),
                              move |c, v| {
@@ -225,7 +229,8 @@ fn generate_array_logic(
                           model.set_row_data(i, data);
                      }
                 };
-                let out_prop_logic = generate_out_property_with_index(global_type_name, setter);
+                let resolved_ty = resolve_type(f_ty);
+                let out_prop_logic = generate_out_property_with_index(global_type_name, setter, resolved_ty);
                 loop_body.push(quote! {
                     let #f_name = #out_prop_logic.sender().clone();
                 });
@@ -335,12 +340,13 @@ fn generate_scalar_logic(
              let f_receivers = format_ident!("{}_receivers", f_name);
 
              if f.direction == Direction::In {
+                 let resolved_elem_ty = resolve_type(&arr.elem);
                  setups.push(quote! {
                     let mut #f_senders = Vec::with_capacity(#len);
                     let mut #f_receivers = Vec::with_capacity(#len);
 
                     for _ in 0..#len {
-                        let prop = frand_property::Property::new(weak.clone(), Default::default(), |_, _| {});
+                        let prop = frand_property::Property::<slint::Weak<C>, #resolved_elem_ty>::new(weak.clone(), Default::default(), |_, _| {});
                         #f_senders.push(prop.sender().clone());
                         #f_receivers.push(prop.receiver().clone());
                     }
@@ -360,10 +366,11 @@ fn generate_scalar_logic(
                  });
              } else {
                  // Scalar Out Array
+                 let resolved_elem_ty = resolve_type(&arr.elem);
                  setups.push(quote! {
                     let mut #f_senders = Vec::with_capacity(#len);
                     for j in 0..#len {
-                        let prop = frand_property::Property::new(
+                        let prop = frand_property::Property::<slint::Weak<C>, #resolved_elem_ty>::new(
                              weak.clone(),
                              Default::default(),
                              move |c, v| {
@@ -387,25 +394,47 @@ fn generate_scalar_logic(
         } else {
             if f.direction == Direction::In {
                 let f_sender = format_ident!("{}_sender", f_name);
+                let resolved_ty = resolve_type(f_ty);
                 setups.push(quote! {
-                    let #f_prop = frand_property::Property::new(weak.clone(), Default::default(), |_, _| {});
+                    let #f_prop = frand_property::Property::<slint::Weak<C>, #resolved_ty>::new(weak.clone(), Default::default(), |_, _| {});
                     let #f_name = #f_prop.receiver().clone();
                     let #f_sender = #f_prop.sender().clone();
                 });
-                parent_diff_checks.push(quote! {
-                    if new_data.#f_name != old_data.#f_name {
-                        #f_sender.send(new_data.#f_name.clone());
+                parent_diff_checks.push(if is_special_string_type(f_ty) {
+                    quote! {
+                        if new_data.#f_name != old_data.#f_name {
+                            if let Ok(val) = frand_property::arraystring::ArrayString::try_from_str(new_data.#f_name.as_str()) {
+                                #f_sender.send(val);
+                            }
+                        }
+                    }
+                } else {
+                    quote! {
+                        if new_data.#f_name != old_data.#f_name {
+                            #f_sender.send(new_data.#f_name.clone());
+                        }
                     }
                 });
                 slint_init_fields.push(quote! { #f_name: Default::default() });
             } else {
-                 let setter = quote! {
-                      if let Some(mut data) = model.row_data(0) {
-                           data.#f_name = v;
-                           model.set_row_data(0, data);
+                 let setter = if is_special_string_type(f_ty) {
+                      quote! {
+                          if let Some(mut data) = model.row_data(0) {
+                              data.#f_name = v.to_string().into();
+                              model.set_row_data(0, data);
+                          }
+                      }
+                 } else {
+                      quote! {
+                          if let Some(mut data) = model.row_data(0) {
+                              data.#f_name = v;
+                              model.set_row_data(0, data);
+                          }
                       }
                  };
-                 let out_prop = generate_out_property(global_type_name, setter);
+
+                 let resolved_ty = resolve_type(f_ty);
+                 let out_prop = generate_out_property(global_type_name, setter, resolved_ty);
                  setups.push(quote! {
                      let #f_name = #out_prop.sender().clone();
                  });
@@ -444,9 +473,9 @@ fn generate_scalar_logic(
     }
 }
 
-fn generate_out_property(global_type_name: &syn::Ident, setter_block: TokenStream) -> TokenStream {
+fn generate_out_property(global_type_name: &syn::Ident, setter_block: TokenStream, resolved_ty: TokenStream) -> TokenStream {
     quote! {
-        frand_property::Property::new(
+        frand_property::Property::<slint::Weak<C>, #resolved_ty>::new(
              weak.clone(),
              Default::default(),
              move |c, v| {
@@ -460,9 +489,9 @@ fn generate_out_property(global_type_name: &syn::Ident, setter_block: TokenStrea
     }
 }
 
-fn generate_out_property_with_index(global_type_name: &syn::Ident, setter_block: TokenStream) -> TokenStream {
+fn generate_out_property_with_index(global_type_name: &syn::Ident, setter_block: TokenStream, resolved_ty: TokenStream) -> TokenStream {
      quote! {
-        frand_property::Property::new(
+        frand_property::Property::<slint::Weak<C>, #resolved_ty>::new(
              weak.clone(),
              Default::default(),
              move |c, v| {
@@ -475,4 +504,36 @@ fn generate_out_property_with_index(global_type_name: &syn::Ident, setter_block:
              }
          )
     }
+}
+
+fn resolve_type(ty: &Type) -> TokenStream {
+    if let Type::Path(tp) = ty {
+        if let Some(seg) = tp.path.segments.last() {
+            if seg.ident == "ArrayString" {
+                if let syn::PathArguments::AngleBracketed(args) = &seg.arguments {
+                    if let Some(syn::GenericArgument::Type(syn::Type::Path(type_path))) = args.args.first() {
+                         if let Some(inner_seg) = type_path.path.segments.last() {
+                             let ident_str = inner_seg.ident.to_string();
+                             if ident_str.starts_with('U') {
+                                 if ident_str[1..].parse::<u32>().is_ok() {
+                                      let n = &inner_seg.ident;
+                                      return quote! { frand_property::arraystring::ArrayString<frand_property::arraystring::typenum::#n> };
+                                 }
+                             }
+                         }
+                    }
+                }
+            }
+        }
+    }
+    quote! { #ty }
+}
+
+fn is_special_string_type(ty: &Type) -> bool {
+    if let Type::Path(tp) = ty {
+        if let Some(seg) = tp.path.segments.last() {
+            return seg.ident == "ArrayString";
+        }
+    }
+    false
 }

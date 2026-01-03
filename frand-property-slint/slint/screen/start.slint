@@ -1,6 +1,10 @@
 import { Button, VerticalBox } from "std-widgets.slint";
 import { Adder } from "../components/adder.slint";
-import { AdderArray, AdderArrayDataGlobal } from "../components/adder_array.slint";
+import {
+    AdderArray,
+    AdderArrayDataGlobal,
+} from "../components/adder_array.slint";
+import { Repeater } from "../components/repeater.slint";
 
 export component StartScreen inherits Rectangle {
     callback on-confirm();
@@ -11,6 +15,8 @@ export component StartScreen inherits Rectangle {
             font-size: 24px;
             horizontal-alignment: center;
         }
+
+        Repeater { }
 
         Adder { }
 

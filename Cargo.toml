@@ -18,3 +18,4 @@ slint = ["dep:slint"]
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "sync"] }
 slint = { version = "1.14", optional = true }
 frand-property-macro = { path = "frand-property-macro" }
+arraystring = "0.3"
