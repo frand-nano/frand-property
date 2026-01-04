@@ -3,6 +3,8 @@ use quote::{format_ident, quote};
 use syn::Type;
 use super::parser;
 use parser::{Direction, SlintModel};
+use crate::common::{resolve_type, is_special_string_type};
+
 
 
 pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
@@ -547,34 +549,4 @@ fn generate_out_property_with_index(global_type_name: &syn::Ident, setter_block:
     }
 }
 
-fn resolve_type(ty: &Type) -> TokenStream {
-    if let Type::Path(tp) = ty {
-        if let Some(seg) = tp.path.segments.last() {
-            if seg.ident == "ArrayString" {
-                if let syn::PathArguments::AngleBracketed(args) = &seg.arguments {
-                    if let Some(syn::GenericArgument::Type(syn::Type::Path(type_path))) = args.args.first() {
-                         if let Some(inner_seg) = type_path.path.segments.last() {
-                             let ident_str = inner_seg.ident.to_string();
-                             if ident_str.starts_with('U') {
-                                 if ident_str[1..].parse::<u32>().is_ok() {
-                                      let n = &inner_seg.ident;
-                                      return quote! { frand_property::arraystring::ArrayString<frand_property::arraystring::typenum::#n> };
-                                 }
-                             }
-                         }
-                    }
-                }
-            }
-        }
-    }
-    quote! { #ty }
-}
 
-fn is_special_string_type(ty: &Type) -> bool {
-    if let Type::Path(tp) = ty {
-        if let Some(seg) = tp.path.segments.last() {
-            return seg.ident == "ArrayString";
-        }
-    }
-    false
-}

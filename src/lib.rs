@@ -7,6 +7,8 @@ mod slint;
 #[cfg(feature = "slint")]
 pub use frand_property_macro::slint_model;
 
+pub use frand_property_macro::model;
+
 pub use arraystring;
 
 pub use self::{
