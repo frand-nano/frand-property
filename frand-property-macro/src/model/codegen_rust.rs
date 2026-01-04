@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Type;
 use super::parser::Model;
-use crate::common::resolve_type;
+use crate::common::{resolve_type, generate_return_block};
 
 pub fn generate(input: &Model) -> TokenStream {
     let vis = &input.vis;
@@ -10,30 +10,9 @@ pub fn generate(input: &Model) -> TokenStream {
 
     let field_defs = generate_field_defs(input);
     let init_fields = generate_init_fields(input);
+    let init_logic = quote! { #(#init_fields),* };
 
-    let (return_type, return_expr) = if let Some(array_len) = &input.array_len {
-        (
-            quote! { Vec<Self> },
-            quote! {
-                let mut models = Vec::with_capacity(#array_len);
-                for _ in 0..#array_len {
-                    models.push(Self {
-                        #(#init_fields),*
-                    });
-                }
-                models
-            }
-        )
-    } else {
-        (
-            quote! { Self },
-            quote! {
-                Self {
-                    #(#init_fields),*
-                }
-            }
-        )
-    };
+    let (return_type, return_expr) = generate_return_block(&input.array_len, init_logic);
 
     quote! {
         #vis struct #model_name {

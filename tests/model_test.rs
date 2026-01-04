@@ -1,6 +1,7 @@
 use frand_property::model;
 use frand_property::arraystring::{ArrayString, typenum::U20};
 use std::time::Duration;
+use tokio::time::sleep;
 
 // 1. 기본 모델 정의 테스트
 model! {
@@ -34,9 +35,7 @@ async fn test_async_notification() {
 
     // 별도 태스크에서 값 변경
     tokio::spawn(async move {
-        // tokio time feature 없이 지연을 주기 위해 std::thread::sleep 사용
-        // 테스트 환경이므로 간소화를 위해 사용함
-        std::thread::sleep(Duration::from_millis(50));
+        sleep(Duration::from_millis(50)).await;
         model.count.send(100);
     });
 

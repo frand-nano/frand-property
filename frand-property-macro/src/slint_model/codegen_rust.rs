@@ -3,7 +3,7 @@ use quote::{format_ident, quote};
 use syn::Type;
 use super::parser;
 use parser::{Direction, SlintModel};
-use crate::common::{resolve_type, is_special_string_type};
+use crate::common::{resolve_type, is_special_string_type, is_unit_ty};
 
 
 
@@ -91,14 +91,6 @@ fn generate_struct_init_fields(input: &SlintModel) -> Vec<TokenStream> {
     }).collect()
 }
 
-fn is_unit_ty(ty: &Type) -> bool {
-    if let Type::Tuple(t) = ty {
-        t.elems.is_empty()
-    } else {
-        false
-    }
-}
-
 fn generate_body_logic(input: &SlintModel, global_type_name: &syn::Ident, struct_data_name: &syn::Ident) -> TokenStream {
     let fields: Vec<_> = input.fields.iter().collect();
     let (data_fields, signal_fields): (Vec<_>, Vec<_>) = fields.into_iter()
@@ -172,36 +164,15 @@ fn generate_array_logic(
         if let Type::Array(arr) = f_ty {
             let len = &arr.len;
             let f_senders = format_ident!("{}_senders", f_name);
-            let f_receivers = format_ident!("{}_receivers", f_name);
+
             
             if f.direction == Direction::In {
                 // 배열 IN: 각 요소에 대해 Property 생성
                 let resolved_elem_ty = resolve_type(&arr.elem);
-                loop_body.push(quote! {
-                    let mut #f_senders = Vec::with_capacity(#len);
-                    let mut #f_receivers = Vec::with_capacity(#len);
-
-                    for _ in 0..#len {
-                        let prop = frand_property::Property::<slint::Weak<C>, #resolved_elem_ty>::new(weak.clone(), Default::default(), |_, _| {});
-                        #f_senders.push(prop.sender().clone());
-                        #f_receivers.push(prop.receiver().clone());
-                    }
-                    let #f_name = #f_receivers;
-
-                    // Slint Model 설정
-                    let inner_vec_model = std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len]));
-                    let senders_clone = #f_senders.clone();
-                    
-                    let notify_model = frand_property::SlintNotifyModel::new(inner_vec_model, move |idx, val| {
-                        if let Some(sender) = senders_clone.get(idx) {
-                             sender.send(val);
-                        }
-                    });
-                });
+                let (setup, init) = generate_in_array_setup(f_name, len, &resolved_elem_ty);
+                loop_body.push(setup);
                 rust_struct_fields_init.push(quote! { #f_name });
-                slint_data_fields_init.push(quote! { 
-                    #f_name: slint::ModelRc::new(std::rc::Rc::new(notify_model))
-                });
+                slint_data_fields_init.push(init);
             } else {
                 let resolved_elem_ty = resolve_type(&arr.elem);
                 loop_body.push(quote! {
@@ -246,7 +217,7 @@ fn generate_array_logic(
                      }
                 };
                 let resolved_ty = resolve_type(f_ty);
-                let out_prop_logic = generate_out_property_with_index(global_type_name, setter, resolved_ty);
+                let out_prop_logic = generate_out_property(global_type_name, setter, resolved_ty);
                 loop_body.push(quote! {
                     let #f_name = #out_prop_logic.sender().clone();
                 });
@@ -350,7 +321,6 @@ fn generate_scalar_logic(
     let mut parent_diff_checks = Vec::new();
     
 
-
     for f in signal_fields {
          let f_name = &f.name;
          let f_prop = format_ident!("{}_prop", f_name);
@@ -380,33 +350,13 @@ fn generate_scalar_logic(
         if let Type::Array(arr) = f_ty {
              let len = &arr.len;
              let f_senders = format_ident!("{}_senders", f_name);
-             let f_receivers = format_ident!("{}_receivers", f_name);
+
 
              if f.direction == Direction::In {
                  let resolved_elem_ty = resolve_type(&arr.elem);
-                 setups.push(quote! {
-                    let mut #f_senders = Vec::with_capacity(#len);
-                    let mut #f_receivers = Vec::with_capacity(#len);
-
-                    for _ in 0..#len {
-                        let prop = frand_property::Property::<slint::Weak<C>, #resolved_elem_ty>::new(weak.clone(), Default::default(), |_, _| {});
-                        #f_senders.push(prop.sender().clone());
-                        #f_receivers.push(prop.receiver().clone());
-                    }
-                    let #f_name = #f_receivers;
-
-                    let inner_vec_model = std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len]));
-                    let senders_clone = #f_senders.clone();
-                    
-                    let notify_model = frand_property::SlintNotifyModel::new(inner_vec_model, move |idx, val| {
-                        if let Some(sender) = senders_clone.get(idx) {
-                             sender.send(val);
-                        }
-                    });
-                 });
-                 slint_init_fields.push(quote! {
-                     #f_name: slint::ModelRc::new(std::rc::Rc::new(notify_model))
-                 });
+                 let (setup, init) = generate_in_array_setup(f_name, len, &resolved_elem_ty);
+                 setups.push(setup);
+                 slint_init_fields.push(init);
              } else {
                  // 스칼라 Out 배열
                  let resolved_elem_ty = resolve_type(&arr.elem);
@@ -532,21 +482,41 @@ fn generate_out_property(global_type_name: &syn::Ident, setter_block: TokenStrea
     }
 }
 
-fn generate_out_property_with_index(global_type_name: &syn::Ident, setter_block: TokenStream, resolved_ty: TokenStream) -> TokenStream {
-     quote! {
-        frand_property::Property::<slint::Weak<C>, #resolved_ty>::new(
-             weak.clone(),
-             Default::default(),
-             move |c, v| {
-                 c.upgrade_in_event_loop(move |c| {
-                     let global = c.global::<#global_type_name>();
-                     let model = global.get_data();
-                     // 루프에서 i 캡처
-                     #setter_block
-                 }).unwrap();
-             }
-         )
-    }
+
+
+
+fn generate_in_array_setup(
+    f_name: &syn::Ident,
+    len: &syn::Expr,
+    resolved_elem_ty: &TokenStream
+) -> (TokenStream, TokenStream) {
+    let f_senders = format_ident!("{}_senders", f_name);
+    let f_receivers = format_ident!("{}_receivers", f_name);
+
+    let setup = quote! {
+        let mut #f_senders = Vec::with_capacity(#len);
+        let mut #f_receivers = Vec::with_capacity(#len);
+
+        for _ in 0..#len {
+            let prop = frand_property::Property::<slint::Weak<C>, #resolved_elem_ty>::new(weak.clone(), Default::default(), |_, _| {});
+            #f_senders.push(prop.sender().clone());
+            #f_receivers.push(prop.receiver().clone());
+        }
+        let #f_name = #f_receivers;
+
+        let inner_vec_model = std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len]));
+        let senders_clone = #f_senders.clone();
+        
+        let notify_model = frand_property::SlintNotifyModel::new(inner_vec_model, move |idx, val| {
+            if let Some(sender) = senders_clone.get(idx) {
+                 sender.send(val);
+            }
+        });
+    };
+
+    let init = quote! {
+        #f_name: slint::ModelRc::new(std::rc::Rc::new(notify_model))
+    };
+
+    (setup, init)
 }
-
-
