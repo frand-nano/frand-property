@@ -1,6 +1,7 @@
 use quote::quote;
 use syn::Type;
-use crate::parser::{SlintModel};
+use super::parser;
+use parser::{SlintModel};
 
 pub fn generate(input: &SlintModel) -> String {
     let global_name = format!("{}Global", input.type_name);
@@ -38,14 +39,14 @@ pub fn generate(input: &SlintModel) -> String {
             }
 
             match field.direction {
-                crate::parser::Direction::In => {
+                parser::Direction::In => {
                     // Rust -> Slint (Slint 로직에 의해 변경되어 Rust 가 읽음)
                     // "in x: i32" -> "property <int> global-x;"
                     
                     component_fields.push(format!("    in-out property <{slint_type}> global-{kebab_name};"));
                     component_fields.push(format!("    changed global-{kebab_name} => {{ {global_name}.data[global-index].{kebab_name} = self.global-{kebab_name}; }}"));
                 }
-                crate::parser::Direction::Out => {
+                parser::Direction::Out => {
                     // Rust -> Slint (Rust 가 쓰고 Slint 가 읽음)
                     // "out sum: i32" -> "property <int> global-sum: Global.data[index].sum;"
                     component_fields.push(format!("    out property <{slint_type}> global-{kebab_name}: {global_name}.data[global-index].{kebab_name};"));
@@ -88,12 +89,12 @@ pub fn generate(input: &SlintModel) -> String {
              component_fields.push(format!("    global-{kebab_name} => {{ {global_name}.{kebab_name}(global-index); }}"));
         } else {
             match field.direction {
-                crate::parser::Direction::In => {
+                parser::Direction::In => {
                     // Rust -> Slint (Slint 로직에 의해 변경되어 Rust 가 읽음)
                     component_fields.push(format!("    in-out property <{slint_type}> global-{kebab_name}: {global_name}.data[global-index].{kebab_name};"));
                     component_fields.push(format!("    changed global-{kebab_name} => {{ {global_name}.data[global-index].{kebab_name} = self.global-{kebab_name}; }}"));
                 }
-                crate::parser::Direction::Out => {
+                parser::Direction::Out => {
                     // Rust -> Slint (Rust 가 쓰고 Slint 가 읽음)
                     component_fields.push(format!("    out property <{slint_type}> global-{kebab_name}: {global_name}.data[global-index].{kebab_name};"));
                 }

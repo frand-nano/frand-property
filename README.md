@@ -2,7 +2,7 @@
 
 **frand-property**는 Rust와 Slint UI 간의 상태 동기화 및 비동기 로직 처리를 단순화하기 위한 라이브러리입니다.
 
-`slint_model!` 매크로를 통해 복잡한 보일러플레이트 없이 Rust 구조체와 Slint 컴포넌트를 바인딩하고, `NotifyModel`을 통해 효율적인 반응형 데이터 흐름을 구현할 수 있습니다.
+`slint_model!` 매크로를 통해 복잡한 보일러플레이트 없이 Rust 구조체와 Slint 컴포넌트를 바인딩하고, `SlintNotifyModel`을 통해 효율적인 반응형 데이터 흐름을 구현할 수 있습니다.
 
 ## 주요 기능
 
@@ -11,7 +11,7 @@
     - **배열 모델 지원**: `Model[N]` 문법으로 동일한 로직을 가진 다수의 모델 인스턴스를 쉽게 생성합니다.
     - **배열 필드 지원**: `field: type[N]` 문법으로 고정 길이 배열 프로퍼티를 처리할 수 있습니다.
 - **반응형 상태 관리**: Rust의 `System` 트레이트와 `tokio` 비동기 런타임을 결합하여 UI 이벤트를 효율적으로 처리합니다.
-- **최적화된 렌더링**: 내부적으로 `NotifyModel`을 사용하여 변경된 데이터만 세밀하게 업데이트하므로 불필요한 리렌더링을 방지합니다.
+- **최적화된 렌더링**: 내부적으로 `SlintNotifyModel`을 사용하여 변경된 데이터만 세밀하게 업데이트하므로 불필요한 리렌더링을 방지합니다.
 
 ## 설치
 
@@ -85,7 +85,7 @@ export struct AdderData {
 
 // 2. 전역 싱글톤 정의 (이름은 반드시 {ModelName}Global 규칙을 따라야 함)
 export global AdderModelGlobal {
-    // Rust에서 이 배열 데이터를 관리합니다 (NotifyModel 사용)
+    // Rust에서 이 배열 데이터를 관리합니다 (SlintNotifyModel 사용)
     in-out property <[AdderData]> data;
 }
 
@@ -154,7 +154,7 @@ async fn main() -> Result<(), slint::PlatformError> {
 ## 구조
 
 - **`frand-property-macro`**: `slint_model!` 프로시저럴 매크로 구현체
-- **`frand-property`**: 런타임 라이브러리 (Property, NotifyModel, System trait 등)
+- **`frand-property`**: 런타임 라이브러리 (Property, SlintNotifyModel, System trait 등)
 - **`frand-property-slint`**: 전체 기능을 보여주는 Slint 예제 프로젝트
 
 ## 라이선스

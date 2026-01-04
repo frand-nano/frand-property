@@ -6,7 +6,7 @@
 
 `slint_model!`은 Rust 구조체 정의를 기반으로 다음 요소들을 자동으로 생성 및 연결합니다:
 1. **Rust 모델 구조체**: `Receiver` 및 `Sender` 필드를 포함하여 데이터 흐름을 제어합니다.
-2. **Slint 초기화 로직**: `NotifyModel`을 사용하여 Slint의 Global 데이터와 Rust 모델을 동기화합니다.
+2. **Slint 초기화 로직**: `SlintNotifyModel`을 사용하여 Slint의 Global 데이터와 Rust 모델을 동기화합니다.
 3. **Slint 문서 (Doc Comments)**: 생성된 Slint 코드를 Rust 문서 주석으로 포함하여 IDE에서 확인할 수 있게 합니다.
 
 ## 사용법

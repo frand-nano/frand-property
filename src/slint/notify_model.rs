@@ -1,13 +1,13 @@
 use std::rc::Rc;
 use slint::{Model, ModelNotify, ModelTracker, VecModel};
 
-pub struct NotifyModel<T> {
+pub struct SlintNotifyModel<T> {
     inner: Rc<VecModel<T>>,
     notify: ModelNotify,
     on_change: Box<dyn Fn(usize, T)>,
 }
 
-impl<T> NotifyModel<T> {
+impl<T> SlintNotifyModel<T> {
     pub fn new(inner: Rc<VecModel<T>>, on_change: impl Fn(usize, T) + 'static) -> Self {
         Self {
             inner,
@@ -17,7 +17,7 @@ impl<T> NotifyModel<T> {
     }
 }
 
-impl<T: Clone + 'static + PartialEq> Model for NotifyModel<T> {
+impl<T: Clone + 'static + PartialEq> Model for SlintNotifyModel<T> {
     type Data = T;
 
     fn row_count(&self) -> usize {

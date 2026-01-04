@@ -1,7 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Type;
-use crate::parser::{Direction, SlintModel};
+use super::parser;
+use parser::{Direction, SlintModel};
 
 
 pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
@@ -114,8 +115,8 @@ fn generate_array_logic(
     array_len: &syn::Expr,
     struct_data_name: &syn::Ident,
     global_type_name: &syn::Ident,
-    data_fields: &[&crate::parser::SlintModelField],
-    signal_fields: &[&crate::parser::SlintModelField],
+    data_fields: &[&parser::SlintModelField],
+    signal_fields: &[&parser::SlintModelField],
     input: &SlintModel
 ) -> TokenStream {
     let struct_init_ids = generate_struct_init_fields(input);
@@ -189,7 +190,7 @@ fn generate_array_logic(
                     let inner_vec_model = std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len]));
                     let senders_clone = #f_senders.clone();
                     
-                    let notify_model = frand_property::NotifyModel::new(inner_vec_model, move |idx, val| {
+                    let notify_model = frand_property::SlintNotifyModel::new(inner_vec_model, move |idx, val| {
                         if let Some(sender) = senders_clone.get(idx) {
                              sender.send(val);
                         }
@@ -317,7 +318,7 @@ fn generate_array_logic(
         
         #(#scalar_vectors_clone)*
         
-        let notify_model = frand_property::NotifyModel::new(inner_model, move |idx, new_data| {
+        let notify_model = frand_property::SlintNotifyModel::new(inner_model, move |idx, new_data| {
              let mut old_data_guard = old_data_vec_clone.borrow_mut();
              if idx < old_data_guard.len() {
                  let old_data = &mut old_data_guard[idx];
@@ -337,8 +338,8 @@ fn generate_array_logic(
 fn generate_scalar_logic(
     struct_data_name: &syn::Ident,
     global_type_name: &syn::Ident,
-    data_fields: &[&crate::parser::SlintModelField],
-    signal_fields: &[&crate::parser::SlintModelField],
+    data_fields: &[&parser::SlintModelField],
+    signal_fields: &[&parser::SlintModelField],
     input: &SlintModel
 ) -> TokenStream {
     let mut setups = Vec::new();
@@ -395,7 +396,7 @@ fn generate_scalar_logic(
                     let inner_vec_model = std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len]));
                     let senders_clone = #f_senders.clone();
                     
-                    let notify_model = frand_property::NotifyModel::new(inner_vec_model, move |idx, val| {
+                    let notify_model = frand_property::SlintNotifyModel::new(inner_vec_model, move |idx, val| {
                         if let Some(sender) = senders_clone.get(idx) {
                              sender.send(val);
                         }
@@ -495,7 +496,7 @@ fn generate_scalar_logic(
         
         let inner_model = std::rc::Rc::new(slint::VecModel::from(vec![initial_data]));
         
-        let notify_model = frand_property::NotifyModel::new(inner_model, move |_row, new_data| {
+        let notify_model = frand_property::SlintNotifyModel::new(inner_model, move |_row, new_data| {
             let mut old_data = old_data_clone.borrow_mut();
             
             #(#parent_diff_checks)*

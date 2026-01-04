@@ -15,7 +15,9 @@ default = [ "slint" ]
 slint = ["dep:slint"]
 
 [dependencies]
-tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "sync"] }
-slint = { version = "1.14", optional = true }
 frand-property-macro = { path = "frand-property-macro" }
+
+slint = { version = "1.14", optional = true }
+
+tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "sync"] }
 arraystring = "0.3"
