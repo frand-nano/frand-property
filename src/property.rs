@@ -1,19 +1,21 @@
+use std::fmt;
 use std::sync::Arc;
 use tokio::sync::watch;
 
-pub struct Property<C, T> {
-    sender: Sender<C, T>,
+#[derive(Debug, Clone)]
+pub struct Property<T, C = ()> {
+    sender: Sender<T, C>,
     receiver: Receiver<T>,
 }
 
-pub struct Sender<C, T> {
+pub struct Sender<T, C = ()> {
     component: Arc<C>,
     sender: watch::Sender<T>,
     receiver: watch::Receiver<T>,
     set: Arc<dyn Fn(&C, T) + Send + Sync>,
 }
 
-impl<C, T> Clone for Sender<C, T> {
+impl<T, C> Clone for Sender<T, C> {
     fn clone(&self) -> Self {
         Self {
             component: self.component.clone(),
@@ -24,15 +26,26 @@ impl<C, T> Clone for Sender<C, T> {
     }
 }
 
-#[derive(Clone)]
+impl<T: fmt::Debug, C> fmt::Debug for Sender<T, C> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Sender")
+            .field("component", &"Arc<C>")
+            .field("sender", &self.sender)
+            .field("receiver", &self.receiver)
+            .finish()
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Receiver<T> {
     #[allow(dead_code)] sender: watch::Sender<T>,
     receiver: watch::Receiver<T>,
 }
 
-impl<C, T> Property<C, T> {
-    pub fn sender(&self) -> &Sender<C, T> { &self.sender }
+impl<T, C> Property<T, C> {
+    pub fn sender(&self) -> &Sender<T, C> { &self.sender }
     pub fn receiver(&self) -> &Receiver<T> { &self.receiver }
+    pub fn receiver_mut(&mut self) -> &mut Receiver<T> { &mut self.receiver }
 
     pub fn new(
         component: Arc<C>,
@@ -61,6 +74,10 @@ impl<T> Receiver<T> {
         *self.receiver.borrow()
     }
 
+    pub fn has_changed(&self) -> bool {
+        self.receiver.has_changed().unwrap_or(false)
+    }
+
     pub async fn changed(&mut self) -> T where T: Copy + PartialEq {
         let last_value = self.value();
 
@@ -84,7 +101,7 @@ impl<T> Receiver<T> {
     }
 }
 
-impl<C, T> Sender<C, T> {
+impl<T, C> Sender<T, C> {
     pub fn send(&self, value: T) where T: Copy + PartialEq {
         let current_value = *self.receiver.borrow();
 
@@ -109,27 +126,5 @@ impl<C, T> Sender<C, T> {
                 // self 가 sender 와 receiver 를 모두 소유하기 때문에 receiver 는 언제나 존재합니다.
                 unreachable!("Receiver is already dropped.")
             );
-    }
-}
-
-impl<C, T> Property<C, T> {
-    pub fn value(&self) -> T where T: Copy {
-        self.receiver.value()
-    }
-
-    pub async fn changed(&self) -> T where T: Copy + PartialEq {
-        self.receiver.clone().changed().await
-    }
-
-    pub async fn notified(&self) -> T where T: Copy {
-        self.receiver.clone().notified().await
-    }
-
-    pub fn send(&self, value: T) where T: Copy + PartialEq {
-        self.sender.send(value)
-    }
-
-    pub fn notify(&self) where T: Copy {
-        self.sender.notify()
     }
 }

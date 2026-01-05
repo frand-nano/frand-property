@@ -15,6 +15,7 @@ pub fn generate(input: &Model) -> TokenStream {
     let (return_type, return_expr) = generate_return_block(&input.array_len, init_logic);
 
     quote! {
+        #[derive(Debug, Clone)]
         #vis struct #model_name {
             #(#field_defs),*
         }
@@ -37,10 +38,10 @@ fn generate_field_defs(input: &Model) -> Vec<TokenStream> {
         if let Type::Array(arr) = f_ty {
             let elem_ty = &arr.elem;
             let resolved_elem_ty = resolve_type(elem_ty);
-            quote! { #f_vis #f_name: Vec<frand_property::Property<(), #resolved_elem_ty>> }
+            quote! { #f_vis #f_name: Vec<frand_property::Property<#resolved_elem_ty>> }
         } else {
             let resolved_ty = resolve_type(f_ty);
-            quote! { #f_vis #f_name: frand_property::Property<(), #resolved_ty> }
+            quote! { #f_vis #f_name: frand_property::Property<#resolved_ty> }
         }
     }).collect()
 }
@@ -59,7 +60,7 @@ fn generate_init_fields(input: &Model) -> Vec<TokenStream> {
                 #f_name: {
                     let mut props = Vec::with_capacity(#len);
                     for _ in 0..#len {
-                        props.push(frand_property::Property::<(), #resolved_elem_ty>::new(
+                        props.push(frand_property::Property::<#resolved_elem_ty>::new(
                             weak.clone(),
                             Default::default(),
                             |_, _| {}
@@ -71,7 +72,7 @@ fn generate_init_fields(input: &Model) -> Vec<TokenStream> {
         } else {
             let resolved_ty = resolve_type(f_ty);
             quote! {
-                #f_name: frand_property::Property::<(), #resolved_ty>::new(
+                #f_name: frand_property::Property::<#resolved_ty>::new(
                     weak.clone(),
                     Default::default(),
                     |_, _| {}

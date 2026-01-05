@@ -34,6 +34,7 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
 
     quote! {
         #doc_comment
+        #[derive(Debug, Clone)]
         #vis struct #model_name<C: slint::ComponentHandle> {
             #(#field_defs),*
         }
@@ -61,21 +62,21 @@ fn generate_field_defs(input: &SlintModel) -> Vec<TokenStream> {
             let elem_ty = &arr.elem;
             let resolved_elem_ty = resolve_type(elem_ty);
             if *direction == Direction::Out {
-                quote! { #f_vis #f_name: Vec<frand_property::Sender<slint::Weak<C>, #resolved_elem_ty>> }
+                quote! { #f_vis #f_name: Vec<frand_property::Sender<#resolved_elem_ty, slint::Weak<C>>> }
             } else {
                  quote! { #f_vis #f_name: Vec<frand_property::Receiver<#resolved_elem_ty>> }
             }
         } else {
             if is_unit {
                 if *direction == Direction::Out {
-                     quote! { #f_vis #f_name: frand_property::Sender<slint::Weak<C>, ()> }
+                     quote! { #f_vis #f_name: frand_property::Sender<(), slint::Weak<C>> }
                 } else {
                      quote! { #f_vis #f_name: frand_property::Receiver<()> }
                 }
             } else {
                 let resolved_ty = resolve_type(f_ty);
                 if *direction == Direction::Out {
-                    quote! { #f_vis #f_name: frand_property::Sender<slint::Weak<C>, #resolved_ty> }
+                    quote! { #f_vis #f_name: frand_property::Sender<#resolved_ty, slint::Weak<C>> }
                 } else {
                     quote! { #f_vis #f_name: frand_property::Receiver<#resolved_ty> }
                 }
@@ -178,7 +179,7 @@ fn generate_array_logic(
                 loop_body.push(quote! {
                     let mut #f_senders = Vec::with_capacity(#len);
                     for j in 0..#len {
-                        let prop = frand_property::Property::<slint::Weak<C>, #resolved_elem_ty>::new(
+                        let prop = frand_property::Property::<#resolved_elem_ty, slint::Weak<C>>::new(
                              weak.clone(),
                              Default::default(),
                              move |c, v| {
@@ -363,7 +364,7 @@ fn generate_scalar_logic(
                  setups.push(quote! {
                     let mut #f_senders = Vec::with_capacity(#len);
                     for j in 0..#len {
-                        let prop = frand_property::Property::<slint::Weak<C>, #resolved_elem_ty>::new(
+                        let prop = frand_property::Property::<#resolved_elem_ty, slint::Weak<C>>::new(
                              weak.clone(),
                              Default::default(),
                              move |c, v| {
@@ -389,7 +390,7 @@ fn generate_scalar_logic(
                 let f_sender = format_ident!("{}_sender", f_name);
                 let resolved_ty = resolve_type(f_ty);
                 setups.push(quote! {
-                    let #f_prop = frand_property::Property::<slint::Weak<C>, #resolved_ty>::new(weak.clone(), Default::default(), |_, _| {});
+                    let #f_prop = frand_property::Property::<#resolved_ty, slint::Weak<C>>::new(weak.clone(), Default::default(), |_, _| {});
                     let #f_name = #f_prop.receiver().clone();
                     let #f_sender = #f_prop.sender().clone();
                 });
@@ -468,7 +469,7 @@ fn generate_scalar_logic(
 
 fn generate_out_property(global_type_name: &syn::Ident, setter_block: TokenStream, resolved_ty: TokenStream) -> TokenStream {
     quote! {
-        frand_property::Property::<slint::Weak<C>, #resolved_ty>::new(
+        frand_property::Property::<#resolved_ty, slint::Weak<C>>::new(
              weak.clone(),
              Default::default(),
              move |c, v| {
@@ -498,7 +499,7 @@ fn generate_in_array_setup(
         let mut #f_receivers = Vec::with_capacity(#len);
 
         for _ in 0..#len {
-            let prop = frand_property::Property::<slint::Weak<C>, #resolved_elem_ty>::new(weak.clone(), Default::default(), |_, _| {});
+            let prop = frand_property::Property::<#resolved_elem_ty, slint::Weak<C>>::new(weak.clone(), Default::default(), |_, _| {});
             #f_senders.push(prop.sender().clone());
             #f_receivers.push(prop.receiver().clone());
         }
