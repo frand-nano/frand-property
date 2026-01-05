@@ -42,31 +42,4 @@ pub fn is_unit_ty(ty: &Type) -> bool {
     }
 }
 
-pub fn generate_return_block(
-    array_len: &Option<syn::Expr>,
-    init_logic: TokenStream
-) -> (TokenStream, TokenStream) {
-    if let Some(len) = array_len {
-        (
-            quote! { Vec<Self> },
-            quote! {
-                let mut models = Vec::with_capacity(#len);
-                for _ in 0..#len {
-                    models.push(Self {
-                        #init_logic
-                    });
-                }
-                models
-            }
-        )
-    } else {
-        (
-            quote! { Self },
-            quote! {
-                Self {
-                    #init_logic
-                }
-            }
-        )
-    }
-}
+

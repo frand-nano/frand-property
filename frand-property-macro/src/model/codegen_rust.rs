@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Type;
 use super::parser::Model;
-use crate::common::{resolve_type, generate_return_block};
+use crate::common::resolve_type;
 
 pub fn generate(input: &Model) -> TokenStream {
     let vis = &input.vis;
@@ -12,8 +12,6 @@ pub fn generate(input: &Model) -> TokenStream {
     let init_fields = generate_init_fields(input);
     let init_logic = quote! { #(#init_fields),* };
 
-    let (return_type, return_expr) = generate_return_block(&input.array_len, init_logic);
-
     quote! {
         #[derive(Debug, Clone)]
         #vis struct #model_name {
@@ -21,9 +19,22 @@ pub fn generate(input: &Model) -> TokenStream {
         }
 
         impl #model_name {
-            pub fn new() -> #return_type {
+            pub fn new() -> Self {
                 let weak = std::sync::Arc::new(());
-                #return_expr
+                Self {
+                    #init_logic
+                }
+            }
+
+            pub fn new_array<const LEN: usize>() -> Vec<Self> {
+                let weak = std::sync::Arc::new(());
+                let mut models = Vec::with_capacity(LEN);
+                for _ in 0..LEN {
+                    models.push(Self {
+                        #init_logic
+                    });
+                }
+                models
             }
         }
     }
@@ -81,5 +92,3 @@ fn generate_init_fields(input: &Model) -> Vec<TokenStream> {
         }
     }).collect()
 }
-
-

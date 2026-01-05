@@ -8,7 +8,7 @@ use syn::{
 pub struct Model {
     pub vis: Visibility,
     pub model_name: Ident,
-    pub array_len: Option<syn::Expr>,
+
     pub _brace_token: token::Brace,
     pub fields: Punctuated<ModelField, Token![,]>,
 }
@@ -27,14 +27,7 @@ impl Parse for Model {
         Ok(Model {
             vis: input.parse()?,
             model_name: input.parse()?,
-            // 배열 크기 옵션 파싱 (예: [MODEL_LEN])
-            array_len: if input.peek(token::Bracket) {
-                let content;
-                syn::bracketed!(content in input);
-                Some(content.parse()?)
-            } else {
-                None
-            },
+
             _brace_token: syn::braced!(content in input),
             fields: content.parse_terminated(ModelField::parse, Token![,])?,
         })

@@ -5,8 +5,6 @@ use super::parser;
 use parser::{Direction, SlintModel};
 use crate::common::{resolve_type, is_special_string_type, is_unit_ty};
 
-
-
 pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
     let vis = &input.vis;
     let model_name = &input.model_name;
@@ -15,22 +13,12 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
     let global_type_name = format_ident!("{}Global", type_name);
 
     let field_defs = generate_field_defs(input);
-    let body_logic = generate_body_logic(input, &global_type_name, struct_data_name);
-
-    // 반환 타입 결정
-    let (return_type, return_expr) = if input.array_len.is_some() {
-        (
-            quote! { Vec<Self> },
-            quote! { #body_logic }
-        )
-    } else {
-        (
-            quote! { Self },
-            quote! { 
-                { #body_logic }
-            }
-        )
-    };
+    
+    // Scalar logic (Length = 1)
+    let body_logic_scalar = generate_logic_impl(quote! { 1 }, struct_data_name, &global_type_name, input);
+    
+    // Array logic (Length = LEN)
+    let body_logic_array = generate_logic_impl(quote! { LEN }, struct_data_name, &global_type_name, input);
 
     quote! {
         #doc_comment
@@ -40,11 +28,19 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
         }
 
         impl<C: slint::ComponentHandle + 'static> #model_name<C> {
-            pub fn new(component: &C) -> #return_type where for<'a> #global_type_name<'a>: slint::Global<'a, C> {
+            pub fn new(component: &C) -> Self where for<'a> #global_type_name<'a>: slint::Global<'a, C> {
                 use slint::Model as _;
                 let weak = std::sync::Arc::new(component.as_weak());
 
-                #return_expr
+                let mut models = { #body_logic_scalar };
+                models.pop().expect("Should have created 1 model")
+            }
+
+            pub fn new_array<const LEN: usize>(component: &C) -> Vec<Self> where for<'a> #global_type_name<'a>: slint::Global<'a, C> {
+                 use slint::Model as _;
+                 let weak = std::sync::Arc::new(component.as_weak());
+
+                 #body_logic_array
             }
         }
     }
@@ -92,28 +88,16 @@ fn generate_struct_init_fields(input: &SlintModel) -> Vec<TokenStream> {
     }).collect()
 }
 
-fn generate_body_logic(input: &SlintModel, global_type_name: &syn::Ident, struct_data_name: &syn::Ident) -> TokenStream {
+fn generate_logic_impl(
+    array_len_tokens: TokenStream,
+    struct_data_name: &syn::Ident,
+    global_type_name: &syn::Ident,
+    input: &SlintModel
+) -> TokenStream {
     let fields: Vec<_> = input.fields.iter().collect();
     let (data_fields, signal_fields): (Vec<_>, Vec<_>) = fields.into_iter()
         .partition(|f| !is_unit_ty(&f.ty));
 
-    if let Some(array_len) = &input.array_len {
-        generate_array_logic(array_len, struct_data_name, global_type_name, &data_fields, &signal_fields, input)
-    } else {
-        generate_scalar_logic(struct_data_name, global_type_name, &data_fields, &signal_fields, input)
-    }
-
-
-}
-
-fn generate_array_logic(
-    array_len: &syn::Expr,
-    struct_data_name: &syn::Ident,
-    global_type_name: &syn::Ident,
-    data_fields: &[&parser::SlintModelField],
-    signal_fields: &[&parser::SlintModelField],
-    input: &SlintModel
-) -> TokenStream {
     let struct_init_ids = generate_struct_init_fields(input);
     let mut loop_body = Vec::new();
 
@@ -122,7 +106,7 @@ fn generate_array_logic(
 
     let mut signal_init_block = Vec::new();
 
-    for f in signal_fields {
+    for f in &signal_fields {
         let f_name = &f.name;
         
         if f.direction == Direction::Out {
@@ -134,9 +118,9 @@ fn generate_array_logic(
         let on_ident = format_ident!("on_{}", f_name);
         
         signal_init_block.push(quote! {
-            let mut #f_senders = Vec::with_capacity(#array_len);
-            let mut #f_receivers = Vec::with_capacity(#array_len);
-            for _ in 0..#array_len {
+            let mut #f_senders = Vec::with_capacity(#array_len_tokens);
+            let mut #f_receivers = Vec::with_capacity(#array_len_tokens);
+            for _ in 0..#array_len_tokens {
                  let prop = frand_property::Property::new(weak.clone(), Default::default(), |_,_| {});
                  #f_senders.push(prop.sender().clone());
                  #f_receivers.push(prop.receiver().clone());
@@ -157,7 +141,7 @@ fn generate_array_logic(
         rust_struct_fields_init.push(quote! { #f_name });
     }
 
-    for f in data_fields {
+    for f in &data_fields {
         let f_name = &f.name;
         let f_ty = &f.ty;
         let f_prop = format_ident!("{}_prop", f_name);
@@ -211,12 +195,23 @@ fn generate_array_logic(
                  rust_struct_fields_init.push(quote! { #f_name });
                  slint_data_fields_init.push(quote! { #f_name: Default::default() });
             } else {
-                let setter = quote! {
-                     if let Some(mut data) = model.row_data(i) {
-                          data.#f_name = v;
-                          model.set_row_data(i, data);
+                // Out Scalar
+                let setter = if is_special_string_type(f_ty) {
+                     quote! {
+                         if let Some(mut data) = model.row_data(i) {
+                              data.#f_name = v.to_string().into();
+                              model.set_row_data(i, data);
+                         }
+                     }
+                } else {
+                     quote! {
+                         if let Some(mut data) = model.row_data(i) {
+                              data.#f_name = v;
+                              model.set_row_data(i, data);
+                         }
                      }
                 };
+                
                 let resolved_ty = resolve_type(f_ty);
                 let out_prop_logic = generate_out_property(global_type_name, setter, resolved_ty);
                 loop_body.push(quote! {
@@ -232,7 +227,7 @@ fn generate_array_logic(
     let mut scalar_in_senders_collect = Vec::new();
     let mut scalar_diff_checks = Vec::new();
     
-    for f in data_fields {
+    for f in &data_fields {
         if let Type::Array(_) = f.ty { continue; }
         if f.direction == Direction::In {
             let f_name = &f.name;
@@ -241,37 +236,51 @@ fn generate_array_logic(
             scalar_in_senders_collect.push(quote! {
                 #vec_name.push(#f_prop.sender().clone());
             });
-            scalar_diff_checks.push(quote! {
-                if new_data.#f_name != old_data.#f_name {
-                    if let Some(sender) = #vec_name.get(idx) {
-                        sender.send(new_data.#f_name.clone());
+            
+            if is_special_string_type(&f.ty) {
+                // In diff checks, we need to send converted value.
+                scalar_diff_checks.push(quote! {
+                    if new_data.#f_name != old_data.#f_name {
+                        if let Some(sender) = #vec_name.get(idx) {
+                             if let Ok(val) = frand_property::arraystring::ArrayString::try_from_str(new_data.#f_name.as_str()) {
+                                 sender.send(val);
+                             }
+                        }
                     }
-                }
-            });
+                });
+            } else {
+                scalar_diff_checks.push(quote! {
+                    if new_data.#f_name != old_data.#f_name {
+                        if let Some(sender) = #vec_name.get(idx) {
+                            sender.send(new_data.#f_name.clone());
+                        }
+                    }
+                });
+            }
         }
     }
     
     let mut scalar_vectors_init = Vec::new();
     let mut scalar_vectors_clone = Vec::new();
-    for f in data_fields {
+    for f in &data_fields {
          if let Type::Array(_) = f.ty { continue; }
          if f.direction == Direction::In {
              let f_name = &f.name;
              let vec_name = format_ident!("{}_senders", f_name);
-             scalar_vectors_init.push(quote! { let mut #vec_name = Vec::with_capacity(#array_len); });
+             scalar_vectors_init.push(quote! { let mut #vec_name = Vec::with_capacity(#array_len_tokens); });
              scalar_vectors_clone.push(quote! { let #vec_name = #vec_name.clone(); });
          }
     }
 
     quote! {
-        let mut rust_models = Vec::with_capacity(#array_len);
-        let mut slint_data = Vec::with_capacity(#array_len);
+        let mut rust_models = Vec::with_capacity(#array_len_tokens);
+        let mut slint_data = Vec::with_capacity(#array_len_tokens);
         #(#scalar_vectors_init)*
         
         // 시그널 필드 설정 (배열)
         #(#signal_init_block)*
 
-        for i in 0..#array_len {
+        for i in 0..#array_len_tokens {
             #(#loop_body)*
             
             #(#scalar_in_senders_collect)*
@@ -309,164 +318,6 @@ fn generate_array_logic(
     }
 }
 
-fn generate_scalar_logic(
-    struct_data_name: &syn::Ident,
-    global_type_name: &syn::Ident,
-    data_fields: &[&parser::SlintModelField],
-    signal_fields: &[&parser::SlintModelField],
-    input: &SlintModel
-) -> TokenStream {
-    let mut setups = Vec::new();
-    let mut slint_init_fields = Vec::new();
-    let struct_init_fields = generate_struct_init_fields(input);
-    let mut parent_diff_checks = Vec::new();
-    
-
-    for f in signal_fields {
-         let f_name = &f.name;
-         let f_prop = format_ident!("{}_prop", f_name);
-         
-         if f.direction == Direction::Out {
-              proc_macro_error::abort!(f_name, "`()` type cannot be used with `out` direction");
-         } else {
-             let on_ident = format_ident!("on_{}", f_name);
-             setups.push(quote! {
-                 let #f_prop = frand_property::Property::new(
-                     weak.clone(),
-                     Default::default(),
-                     |_, _| {}
-                 );
-                 let sender = #f_prop.sender().clone();
-                 component.global::<#global_type_name>().#on_ident(move |_| { sender.notify(); });
-                 let #f_name = #f_prop.receiver().clone();
-             });
-         }
-    }
-
-    for f in data_fields {
-        let f_name = &f.name;
-        let f_ty = &f.ty;
-        let f_prop = format_ident!("{}_prop", f_name);
-
-        if let Type::Array(arr) = f_ty {
-             let len = &arr.len;
-             let f_senders = format_ident!("{}_senders", f_name);
-
-
-             if f.direction == Direction::In {
-                 let resolved_elem_ty = resolve_type(&arr.elem);
-                 let (setup, init) = generate_in_array_setup(f_name, len, &resolved_elem_ty);
-                 setups.push(setup);
-                 slint_init_fields.push(init);
-             } else {
-                 // 스칼라 Out 배열
-                 let resolved_elem_ty = resolve_type(&arr.elem);
-                 setups.push(quote! {
-                    let mut #f_senders = Vec::with_capacity(#len);
-                    for j in 0..#len {
-                        let prop = frand_property::Property::<#resolved_elem_ty, slint::Weak<C>>::new(
-                             weak.clone(),
-                             Default::default(),
-                             move |c, v| {
-                                 c.upgrade_in_event_loop(move |c| {
-                                     let global = c.global::<#global_type_name>();
-                                     let model = global.get_data();
-                                     if let Some(data) = model.row_data(0) {
-                                         data.#f_name.set_row_data(j, v);
-                                     }
-                                 }).unwrap();
-                             }
-                        );
-                        #f_senders.push(prop.sender().clone());
-                    }
-                    let #f_name = #f_senders;
-                 });
-                 slint_init_fields.push(quote! {
-                     #f_name: slint::ModelRc::new(std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len])))
-                 });
-             }
-        } else {
-            if f.direction == Direction::In {
-                let f_sender = format_ident!("{}_sender", f_name);
-                let resolved_ty = resolve_type(f_ty);
-                setups.push(quote! {
-                    let #f_prop = frand_property::Property::<#resolved_ty, slint::Weak<C>>::new(weak.clone(), Default::default(), |_, _| {});
-                    let #f_name = #f_prop.receiver().clone();
-                    let #f_sender = #f_prop.sender().clone();
-                });
-                parent_diff_checks.push(if is_special_string_type(f_ty) {
-                    quote! {
-                        if new_data.#f_name != old_data.#f_name {
-                            if let Ok(val) = frand_property::arraystring::ArrayString::try_from_str(new_data.#f_name.as_str()) {
-                                #f_sender.send(val);
-                            }
-                        }
-                    }
-                } else {
-                    quote! {
-                        if new_data.#f_name != old_data.#f_name {
-                            #f_sender.send(new_data.#f_name.clone());
-                        }
-                    }
-                });
-                slint_init_fields.push(quote! { #f_name: Default::default() });
-            } else {
-                 let setter = if is_special_string_type(f_ty) {
-                      quote! {
-                          if let Some(mut data) = model.row_data(0) {
-                              data.#f_name = v.to_string().into();
-                              model.set_row_data(0, data);
-                          }
-                      }
-                 } else {
-                      quote! {
-                          if let Some(mut data) = model.row_data(0) {
-                              data.#f_name = v;
-                              model.set_row_data(0, data);
-                          }
-                      }
-                 };
-
-                 let resolved_ty = resolve_type(f_ty);
-                 let out_prop = generate_out_property(global_type_name, setter, resolved_ty);
-                 setups.push(quote! {
-                     let #f_name = #out_prop.sender().clone();
-                 });
-                 slint_init_fields.push(quote! { #f_name: Default::default() });
-            }
-        }
-    }
-
-    quote! {
-        #(#setups)*
-        
-        let initial_data = #struct_data_name {
-            #(#slint_init_fields),*
-        };
-        
-        let old_data = std::rc::Rc::new(std::cell::RefCell::new(initial_data.clone()));
-        let old_data_clone = old_data.clone();
-        
-        let inner_model = std::rc::Rc::new(slint::VecModel::from(vec![initial_data]));
-        
-        let notify_model = frand_property::SlintNotifyModel::new(inner_model, move |_row, new_data| {
-            let mut old_data = old_data_clone.borrow_mut();
-            
-            #(#parent_diff_checks)*
-            
-            *old_data = new_data;
-        });
-        
-        component.global::<#global_type_name>().set_data(
-             slint::ModelRc::new(std::rc::Rc::new(notify_model))
-        );
-        
-        Self {
-            #(#struct_init_fields),*
-        }
-    }
-}
-
 fn generate_out_property(global_type_name: &syn::Ident, setter_block: TokenStream, resolved_ty: TokenStream) -> TokenStream {
     quote! {
         frand_property::Property::<#resolved_ty, slint::Weak<C>>::new(
@@ -482,9 +333,6 @@ fn generate_out_property(global_type_name: &syn::Ident, setter_block: TokenStrea
          )
     }
 }
-
-
-
 
 fn generate_in_array_setup(
     f_name: &syn::Ident,

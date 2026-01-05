@@ -69,14 +69,14 @@ fn test_array_field() {
 // 3. 모델 배열 테스트
 const MODEL_COUNT: usize = 3;
 model! {
-    pub ItemModel[MODEL_COUNT] {
+    pub ItemModel {
         pub id: i32,
     }
 }
 
 #[test]
 fn test_model_array() {
-    let models = ItemModel::new(); // Vec<ItemModel> 반환
+    let models = ItemModel::new_array::<MODEL_COUNT>(); // Vec<ItemModel> 반환
     
     assert_eq!(models.len(), 3);
     

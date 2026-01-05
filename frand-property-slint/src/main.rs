@@ -11,6 +11,8 @@ use crate::adder::AdderModel;
 use crate::adder_array::AdderArrayModel;
 use crate::screen::ScreenModel;
 
+pub const MODEL_LEN: usize = 2;
+
 #[tokio::main]
 async fn main() -> Result<(), slint::PlatformError> {
     TermLogger::init(log::LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto)
@@ -24,7 +26,7 @@ async fn main() -> Result<(), slint::PlatformError> {
     let adder_model = AdderModel::<MainWindow>::new(&window);
     adder_model.start_system();
 
-    let adder_array_models = AdderArrayModel::<MainWindow>::new(&window);
+    let adder_array_models = AdderArrayModel::<MainWindow>::new_array::<MODEL_LEN>(&window);
     for model in adder_array_models {
         model.start_system();
     }
