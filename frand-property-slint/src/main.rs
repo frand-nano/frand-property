@@ -1,39 +1,9 @@
-slint::include_modules!();
 
-mod screen;
-mod adder;
-mod adder_array;
-mod repeater;
-
-use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
-use frand_property::System;
-use crate::adder::AdderModel;
-use crate::adder_array::AdderArrayModel;
-use crate::screen::ScreenModel;
-
-pub const MODEL_LEN: usize = 2;
-
+#[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> Result<(), slint::PlatformError> {
-    TermLogger::init(log::LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto)
-        .unwrap_or_else(|err| log::error!("{err}"));
-
-    let window = MainWindow::new()?;
-
-    let screen_model = ScreenModel::<MainWindow>::new(&window);
-    screen_model.start_system();
-
-    let adder_model = AdderModel::<MainWindow>::new(&window);
-    adder_model.start_system();
-
-    let adder_array_models = AdderArrayModel::<MainWindow>::new_array::<MODEL_LEN>(&window);
-    for model in adder_array_models {
-        model.start_system();
-    }
-
-    let repeater_model = crate::repeater::RepeaterModel::<MainWindow>::new(&window);
-    repeater_model.start_system();
-
-    window.run()?;
-    Ok(())
+    frand_property_slint::run().await
 }
+
+#[cfg(target_arch = "wasm32")]
+fn main() {}

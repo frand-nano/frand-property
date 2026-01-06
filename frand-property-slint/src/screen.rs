@@ -17,7 +17,7 @@ impl<C: slint::ComponentHandle + 'static> System for ScreenModel<C> {
         let mut confirm_start = self.confirm_start.clone();
         let mut cancel_pay = self.cancel_pay.clone();
 
-        tokio::spawn(async move {
+        crate::spawn(async move {
             loop {
                 current_screen.send(ScreenVariant::Start);
 

@@ -16,7 +16,7 @@ impl<C: slint::ComponentHandle + 'static> System for RepeaterModel<C> {
         let mut text = self.text.clone();
         let repeated = self.repeated.clone();
 
-        tokio::spawn(async move {
+        crate::spawn(async move {
             loop {
                 let val = text.changed().await;
                 

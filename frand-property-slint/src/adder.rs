@@ -16,7 +16,7 @@ impl<C: slint::ComponentHandle + 'static> System for AdderModel<C> {
         let mut y = self.y.clone();
         let sum = self.sum.clone();
 
-        tokio::spawn(async move {
+        crate::spawn(async move {
             loop {
                 tokio::select! {
                     x = x.changed() => {

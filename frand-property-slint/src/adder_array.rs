@@ -18,7 +18,7 @@ impl<C: slint::ComponentHandle + 'static> System for AdderArrayModel<C> {
         let values = self.values.clone();
         let sum = self.sum.clone();
 
-        tokio::spawn(async move {
+        crate::spawn(async move {
             let mut futures: FuturesUnordered<BoxFuture<'static, (usize, i32)>> = FuturesUnordered::new();
             
             // 초기 퓨처 등록

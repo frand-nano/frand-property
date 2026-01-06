@@ -1583,6 +1583,8 @@ dependencies = [
  "slint",
  "slint-build",
  "tokio",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]
