@@ -54,12 +54,11 @@ slint_model! {
 만약 여러 개의 모델 인스턴스가 필요하거나 필드가 배열인 경우 다음과 같이 정의할 수 있습니다:
 
 ```rust
-const MODEL_LEN: usize = 2; // 모델 인스턴스 개수
 const PROP_LEN: usize = 5;  // 각 필드의 배열 길이
 
 slint_model! {
-    // AdderArrayModel 인스턴스를 MODEL_LEN 개 생성 (Vec<AdderArrayModel> 반환)
-    pub AdderArrayModel[MODEL_LEN]: AdderArrayData {
+    // AdderArrayModel 정의 (인스턴스 생성 시 new_array 사용)
+    pub AdderArrayModel: AdderArrayData {
         // [in] 배열 필드
         // Rust 타입: Vec<frand_property::Receiver<i32>>
         in values: i32[PROP_LEN],
@@ -109,11 +108,14 @@ use frand_property::System;
 impl<C: slint::ComponentHandle + 'static> System for AdderModel<C> {
     fn start_system(&self) {
         // Receiver / Sender 복제 (비동기 클로저로 이동)
+        // in 프로퍼티는 receiver(), out 프로퍼티는 sender()를 통해 접근 가능합니다.
+        // 또는 필드 이름으로 직접 접근도 가능합니다 (Defer를 통한 자동 변환).
         let mut x = self.x.clone();
         let mut y = self.y.clone();
         let sum = self.sum.clone();
 
-        tokio::spawn(async move {
+        // spawn 헬퍼 함수 등을 사용하여 비동기 실행 (WASM 지원 고려)
+        frand_property::spawn(async move {
             loop {
                 tokio::select! {
                     // x 값이 변경되었을 때
@@ -133,18 +135,25 @@ impl<C: slint::ComponentHandle + 'static> System for AdderModel<C> {
 
 ### 4. 메인 함수에서 실행
 
-`main.rs`에서 모델을 초기화하고 시스템을 시작합니다.
+`main.rs`에서 모델을 초기화하고 시스템을 시작합니다. WASM 환경을 고려하여 구성할 수 있습니다.
 
 ```rust
+const MODEL_LEN: usize = 2; // 모델 인스턴스 개수
+
 #[tokio::main]
 async fn main() -> Result<(), slint::PlatformError> {
     let window = MainWindow::new()?;
 
-    // 모델 생성 (Slint Global과 바인딩됨)
+    // 1. 단일 모델 생성 (Slint Global과 바인딩됨)
     let adder_model = AdderModel::<MainWindow>::new(&window);
-    
-    // 시스템 로직 시작 (비동기 루프 실행)
     adder_model.start_system();
+    
+    // 2. 배열 모델 생성 (여러 인스턴스 한 번에 생성)
+    // new_array::<LEN>() 메소드를 사용하여 Vec<AdderArrayModel>을 반환받습니다.
+    let adder_array_models = AdderArrayModel::<MainWindow>::new_array::<MODEL_LEN>(&window);
+    for model in adder_array_models {
+        model.start_system();
+    }
 
     window.run()?;
     Ok(())

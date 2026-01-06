@@ -32,7 +32,7 @@
 - **특징**:
     - `slint_model!`에서 배열 필드를 정의하는 방법을 보여줍니다 (`values: i32[N]`).
     - **`FuturesUnordered`**를 사용하여 배열 내의 개별 요소 변경을 효율적으로 감지하고 처리하는 패턴을 제시합니다.
-    - 모델 자체도 배열(`AdderArrayModel[N]`)로 생성하여 여러 개의 독립적인 계산기를 한 번에 초기화합니다.
+    - 모델을 동적으로 여러 개 생성하는 방법(`new_array::<N>`)을 보여줍니다.
 
 ### 3. Screen (이벤트 및 상태 관리)
 - **파일**: `src/screen.rs`
@@ -46,12 +46,29 @@
 ### 필수 조건
 - Rust (최신 안정 버전)
 - Cargo
+- `wasm-pack` (웹/WASM 실행 시 필요)
 
-### 실행
+### 데스크탑 실행
 
 ```bash
 cargo run
 ```
+
+### 웹 (WASM) 실행
+
+1. 의존성 설치 (필요한 경우)
+    ```bash
+    cargo install wasm-pack
+    ```
+2. WASM 빌드
+    ```bash
+    wasm-pack build --target web
+    ```
+3. 로컬 서버 실행 및 접속
+    ```bash
+    python3 -m http.server 8000
+    # 브라우저에서 http://localhost:8000 접속
+    ```
 
 앱이 실행되면:
 1. **Start Screen**: 기본 계산기 예제들과 화면 전환 버튼이 표시됩니다.

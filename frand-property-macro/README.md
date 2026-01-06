@@ -15,7 +15,6 @@
 use frand_property::slint_model;
 use crate::MyData; // Slint에서 생성된 Struct
 
-const MODEL_COUNT: usize = 2; // 모델 인스턴스 개수
 const ARRAY_LEN: usize = 4;   // 배열 필드 길이
 
 slint_model! {
@@ -25,8 +24,9 @@ slint_model! {
         out output_val: i32,
     }
 
-    // 2. 배열 모델 정의 (Vec<MyArrayModel> 반환)
-    pub MyArrayModel[MODEL_COUNT]: MyData {
+    // 2. 배열 모델 정의 (매크로 단계에서는 단일 모델과 동일하게 정의)
+    // 인스턴스 생성 시 MyArrayModel::new_array::<N>()을 호출하여 Vec<MyArrayModel>을 반환받습니다.
+    pub MyArrayModel: MyData {
         // 3. 배열 필드 정의 (Vec<Receiver<...>> 생성)
         in inputs: i32[ARRAY_LEN],
         out outputs: i32[ARRAY_LEN],
@@ -40,12 +40,12 @@ slint_model! {
 |---|---|---|---|---|
 | **`in`** | Slint → Rust | `in-out property` | `frand_property::Receiver<T>` | Slint에서 값이 변경되면 Rust에서 감지합니다. |
 | **`out`** | Rust → Slint | `out property` | `frand_property::Sender<C, T>` | Rust에서 값을 보내면 Slint UI가 업데이트됩니다. |
-| **`[N]`** | - | `[type]` (배열) | `Vec<...>` | 필드 뒤에 붙으면 해당 타입의 `Vec`이 생성됩니다. |
+| **`[N]`** | - | `[type]` (배열) | `Vec<...>` | 필드 이름 뒤에 붙으면 해당 타입의 `Vec`을 생성하는 배열 필드가 됩니다. (모델 이름 뒤에는 붙이지 않습니다) |
 
 ### 고급 기능
 
-#### 1. 배열 모델 (`Model[N]`)
-모델 이름 뒤에 `[N]`을 명시하면, 해당 모델의 인스턴스를 `N`개 생성하여 `Vec<Model>` 형태로 반환합니다. 이는 리스트 뷰나 반복되는 UI 컴포넌트를 제어할 때 유용합니다.
+#### 1. 배열 모델 생성 (`new_array`)
+모델 정의 시에는 단일 모델처럼 정의하고, Rust 코드에서 인스턴스화할 때 `Model::new_array::<N>(window)` 메소드를 사용하여 `N`개의 모델이 담긴 `Vec<Model>`을 생성할 수 있습니다. 이는 리스트 뷰나 반복되는 UI 컴포넌트를 제어할 때 유용합니다.
 
 #### 2. `ArrayString` 지원
 `frand_property::arraystring::ArrayString` 타입을 사용하면 고정 길이 문자열을 효율적으로 처리할 수 있습니다. 이는 Slint의 `string` 타입과 자동으로 매핑되며, 변환 오버헤드를 줄여줍니다.
