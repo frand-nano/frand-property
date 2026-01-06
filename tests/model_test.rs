@@ -102,3 +102,34 @@ fn test_visibility_compile() {
     model.public_val.sender().send(1);
     model.private_val.sender().send(2); // 같은 모듈 내라서 접근 가능
 }
+
+// 5. ModelSender/ModelReceiver 테스트
+#[tokio::test]
+async fn test_model_sender_receiver() {
+    let model = BasicModel::new();
+    
+    let sender = model.clone_sender();
+    let receiver = model.clone_receiver();
+    
+    sender.count.send(777);
+    assert_eq!(receiver.count.value(), 777);
+    assert_eq!(model.count.receiver().value(), 777);
+    
+    let world = ArrayString::<U20>::try_from_str("World").unwrap();
+    sender.name.send(world);
+    assert_eq!(receiver.name.value().as_str(), "World");
+    assert_eq!(model.name.receiver().value().as_str(), "World");
+}
+
+// 6. Array ModelSender/ModelReceiver 테스트
+#[tokio::test]
+async fn test_array_model_sender_receiver() {
+    let model = ArrayFieldModel::new();
+    
+    let sender = model.clone_sender();
+    let receiver = model.clone_receiver();
+    
+    sender.scores[2].send(12345);
+    assert_eq!(receiver.scores[2].value(), 12345);
+    assert_eq!(model.scores[2].receiver().value(), 12345);
+}
