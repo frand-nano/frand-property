@@ -1,5 +1,5 @@
 use frand_property::*;
-use crate::{AdderArrayData, AdderArrayDataGlobal};
+use crate::{AdderVecData, AdderVecDataGlobal};
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use futures::future::BoxFuture;
@@ -7,13 +7,13 @@ use futures::future::BoxFuture;
 const PROP_LEN: usize = 3;
 
 slint_model! {
-    pub AdderArrayModel: AdderArrayData {
+    pub AdderVecModel: AdderVecData {
         in values: i32[PROP_LEN],
         out sum: i32,
     }
 }
 
-impl<C: slint::ComponentHandle + 'static> System for AdderArrayModel<C> {
+impl<C: slint::ComponentHandle + 'static> System for AdderVecModel<C> {
     fn start_system(&self) {
         let values = self.values.clone();
         let sum = self.sum.clone();

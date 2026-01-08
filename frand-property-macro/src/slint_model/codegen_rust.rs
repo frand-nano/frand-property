@@ -36,7 +36,7 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
                 models.pop().expect("Should have created 1 model")
             }
 
-            pub fn new_array<const LEN: usize>(component: &C) -> Vec<Self> where for<'a> #global_type_name<'a>: slint::Global<'a, C> {
+            pub fn new_vec<const LEN: usize>(component: &C) -> Vec<Self> where for<'a> #global_type_name<'a>: slint::Global<'a, C> {
                  use slint::Model as _;
                  let weak = std::sync::Arc::new(component.as_weak());
 

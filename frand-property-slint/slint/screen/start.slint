@@ -1,8 +1,8 @@
 import { Button, VerticalBox } from "std-widgets.slint";
 import { Adder } from "../components/adder.slint";
 import {
-    AdderArray,
-    AdderArrayDataGlobal,
+    AdderVec,
+    AdderVecDataGlobal,
 } from "../components/adder_array.slint";
 import { Repeater } from "../components/repeater.slint";
 
@@ -20,7 +20,7 @@ export component StartScreen inherits Rectangle {
 
         Adder { }
 
-        for item[i] in AdderArrayDataGlobal.data: AdderArray {
+        for item[i] in AdderVecDataGlobal.data: AdderVec {
             global-index: i;
         }
 

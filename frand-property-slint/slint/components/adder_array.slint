@@ -1,25 +1,27 @@
 import { Button, VerticalBox, HorizontalBox } from "std-widgets.slint";
 
-export struct AdderArrayData {
+export struct AdderVecData {
     values: [int],
     sum: int,
 }
 
-export global AdderArrayDataGlobal {
-    in-out property <[AdderArrayData]> data;
+export global AdderVecDataGlobal {
+    in-out property <[AdderVecData]> data;
 }
 
-component AdderArrayDataComponent inherits Rectangle {
+component AdderVecDataComponent inherits Rectangle {
     in-out property <int> global-index: 0;
-    in-out property <[int]> global-values: AdderArrayDataGlobal.data[global-index].values;
-    changed global-values => { AdderArrayDataGlobal.data[global-index].values = self.global-values; }
-    out property <int> global-sum: AdderArrayDataGlobal.data[global-index].sum;
+    in-out property <[int]> global-values: AdderVecDataGlobal.data[global-index].values;
+    changed global-values => {
+        AdderVecDataGlobal.data[global-index].values = self.global-values;
+    }
+    out property <int> global-sum: AdderVecDataGlobal.data[global-index].sum;
 }
 
-export component AdderArray inherits AdderArrayDataComponent {
+export component AdderVec inherits AdderVecDataComponent {
     VerticalBox {
         Text {
-            text: "AdderArray[" + root.global-index + "]";
+            text: "AdderVec[" + root.global-index + "]";
         }
 
         for value[i] in root.global-values: VerticalBox {

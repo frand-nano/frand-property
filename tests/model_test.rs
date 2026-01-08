@@ -75,8 +75,8 @@ model! {
 }
 
 #[test]
-fn test_model_array() {
-    let models = ItemModel::new_array::<MODEL_COUNT>(); // Vec<ItemModel> 반환
+fn test_model_vec() {
+    let models = ItemModel::new_vec::<MODEL_COUNT>(); // Vec<ItemModel> 반환
     
     assert_eq!(models.len(), 3);
     
@@ -123,7 +123,7 @@ async fn test_model_sender_receiver() {
 
 // 6. Array ModelSender/ModelReceiver 테스트
 #[tokio::test]
-async fn test_array_model_sender_receiver() {
+async fn test_vec_model_sender_receiver() {
     let model = ArrayFieldModel::new();
     
     let sender = model.clone_sender();
@@ -132,4 +132,23 @@ async fn test_array_model_sender_receiver() {
     sender.scores[2].send(12345);
     assert_eq!(receiver.scores[2].value(), 12345);
     assert_eq!(model.scores[2].receiver().value(), 12345);
+}
+
+// 7. Blanket Extension Trait Method 테스트
+#[tokio::test]
+async fn test_model_extension_methods() {
+    use frand_property::ModelList; // Trait import
+    
+    let models = BasicModel::new_vec::<5>();
+    
+    // 메소드 문법 호출
+    let senders = models.clone_senders();
+    let receivers = models.clone_receivers();
+    
+    assert_eq!(senders.len(), 5);
+    assert_eq!(receivers.len(), 5);
+    
+    senders[0].count.send(100);
+    assert_eq!(receivers[0].count.value(), 100);
+    assert_eq!(models[0].count.receiver().value(), 100);
 }

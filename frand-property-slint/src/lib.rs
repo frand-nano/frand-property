@@ -8,7 +8,7 @@ mod repeater;
 
 use frand_property::System;
 use crate::adder::AdderModel;
-use crate::adder_array::AdderArrayModel;
+use crate::adder_array::AdderVecModel;
 use crate::screen::ScreenModel;
 
 #[cfg(target_arch = "wasm32")]
@@ -38,8 +38,8 @@ pub async fn run() -> Result<(), slint::PlatformError> {
     let adder_model = AdderModel::<MainWindow>::new(&window);
     adder_model.start_system();
 
-    let adder_array_models = AdderArrayModel::<MainWindow>::new_array::<MODEL_LEN>(&window);
-    for model in adder_array_models {
+    let adder_vec_models = AdderVecModel::<MainWindow>::new_vec::<MODEL_LEN>(&window);
+    for model in adder_vec_models {
         model.start_system();
     }
 

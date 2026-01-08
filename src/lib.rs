@@ -16,3 +16,6 @@ pub use self::{
     system::*,
     slint::*,
 };
+
+pub mod model;
+pub use model::{Model, ModelList};

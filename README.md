@@ -57,8 +57,8 @@ slint_model! {
 const PROP_LEN: usize = 5;  // 각 필드의 배열 길이
 
 slint_model! {
-    // AdderArrayModel 정의 (인스턴스 생성 시 new_array 사용)
-    pub AdderArrayModel: AdderArrayData {
+    // AdderVecModel 정의 (인스턴스 생성 시 new_vec 사용)
+    pub AdderVecModel: AdderVecData {
         // [in] 배열 필드
         // Rust 타입: Vec<frand_property::Receiver<i32>>
         in values: i32[PROP_LEN],
@@ -83,9 +83,9 @@ export struct AdderData {
 }
 
 // 2. 전역 싱글톤 정의 (이름은 반드시 {ModelName}Global 규칙을 따라야 함)
-export global AdderModelGlobal {
+export global AdderVecModelGlobal {
     // Rust에서 이 배열 데이터를 관리합니다 (SlintNotifyModel 사용)
-    in-out property <[AdderData]> data;
+    in-out property <[AdderVecData]> data;
 }
 
 // 3. 컴포넌트 구현
@@ -149,15 +149,22 @@ async fn main() -> Result<(), slint::PlatformError> {
     adder_model.start_system();
     
     // 2. 배열 모델 생성 (여러 인스턴스 한 번에 생성)
-    // new_array::<LEN>() 메소드를 사용하여 Vec<AdderArrayModel>을 반환받습니다.
-    let adder_array_models = AdderArrayModel::<MainWindow>::new_array::<MODEL_LEN>(&window);
-    for model in adder_array_models {
+    // new_vec::<LEN>() 메소드를 사용하여 Vec<AdderVecModel>을 반환받습니다.
+    let adder_vec_models = AdderVecModel::<MainWindow>::new_vec::<MODEL_LEN>(&window);
+    for model in adder_vec_models {
         model.start_system();
     }
 
     window.run()?;
     Ok(())
 }
+
+// 편의 기능: Sender / Receiver 일괄 변환
+// frand_property::ModelList 트레이트를 임포트하면 Vec<Model>에서 바로 변환 가능합니다.
+use frand_property::ModelList;
+
+let senders = adder_vec_models.clone_senders();
+let receivers = adder_vec_models.clone_receivers();
 ```
 
 ## 구조

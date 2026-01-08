@@ -45,7 +45,7 @@ pub fn generate(input: &Model) -> TokenStream {
                 }
             }
 
-            pub fn new_array<const LEN: usize>() -> Vec<Self> {
+            pub fn new_vec<const LEN: usize>() -> Vec<Self> {
                 let weak = std::sync::Arc::new(());
                 let mut models = Vec::with_capacity(LEN);
                 for _ in 0..LEN {
@@ -61,11 +61,24 @@ pub fn generate(input: &Model) -> TokenStream {
                     #(#clone_sender_logic),*
                 }
             }
-            
+
             pub fn clone_receiver(&self) -> #receiver_name {
                 #receiver_name {
                     #(#clone_receiver_logic),*
                 }
+            }
+        }
+
+        impl frand_property::Model for #model_name {
+            type Sender = #sender_name;
+            type Receiver = #receiver_name;
+
+            fn clone_sender(&self) -> Self::Sender {
+                self.clone_sender()
+            }
+
+            fn clone_receiver(&self) -> Self::Receiver {
+                self.clone_receiver()
             }
         }
     }
