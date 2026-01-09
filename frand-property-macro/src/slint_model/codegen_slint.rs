@@ -34,7 +34,7 @@ pub fn generate(input: &SlintModel) -> String {
             );
             
             if !data_prop_emitted {
-                 global_fields.push(format!("    in-out property <[{struct_name}]> data;"));
+                 global_fields.push(format!("    in-out property <[{struct_name}]> data: [{{}}];"));
                  data_prop_emitted = true;
             }
 
@@ -178,7 +178,7 @@ mod tests {
 
         // Global 싱글톤 정의 확인
         assert!(output.contains("export global AdderDataGlobal {"));
-        assert!(output.contains("in-out property <[AdderData]> data;"));
+        assert!(output.contains("in-out property <[AdderData]> data: [{}];"));
         assert!(output.contains("callback click(int);"));
 
         // Component 정의 확인

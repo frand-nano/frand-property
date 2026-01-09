@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+use frand_property::SlintSingleton;
 use crate::adder::AdderModel;
 use crate::adder_array::AdderVecModel;
 use crate::screen::ScreenModel;
@@ -11,6 +13,14 @@ mod adder_array;
 mod repeater;
 
 slint::include_modules!();
+
+static MAIN_WINDOW: OnceLock<slint::Weak<MainWindow>> = OnceLock::new();
+
+impl SlintSingleton for MainWindow {
+    fn get_singleton_instance() -> slint::Weak<Self> {
+        MAIN_WINDOW.get().expect("MAIN_WINDOW not initialized").clone()
+    }
+}
 
 pub const MODEL_LEN: usize = 2;
 
@@ -29,19 +39,20 @@ pub fn run() -> Result<(), slint::PlatformError> {
     init_logging();
 
     let window = MainWindow::new()?;
+    MAIN_WINDOW.set(window.as_weak()).map_err(|_| slint::PlatformError::Other("Failed to set MAIN_WINDOW".into()))?;
 
-    let screen_model = ScreenModel::<MainWindow>::new(&window);
+    let screen_model = ScreenModel::<MainWindow>::new();
     screen_model.start();
 
-    let adder_model = AdderModel::<MainWindow>::new(&window);
+    let adder_model = AdderModel::<MainWindow>::new();
     adder_model.start();
 
-    let adder_vec_models = AdderVecModel::<MainWindow>::new_vec::<MODEL_LEN>(&window);
+    let adder_vec_models = AdderVecModel::<MainWindow>::new_vec::<MODEL_LEN>();
     for model in adder_vec_models {
         model.start();
     }
 
-    let repeater_model = repeater::RepeaterModel::<MainWindow>::new(&window);
+    let repeater_model = repeater::RepeaterModel::<MainWindow>::new();
     repeater_model.start();
 
     window.run()?;

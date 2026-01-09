@@ -1,3 +1,7 @@
 mod notify_model;
+mod singleton;
 
-pub use notify_model::*;
+pub use self::{
+    notify_model::*,
+    singleton::*,
+};

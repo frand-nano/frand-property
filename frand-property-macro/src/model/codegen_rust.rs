@@ -39,14 +39,11 @@ pub fn generate(input: &Model) -> TokenStream {
 
         impl #model_name {
             pub fn new() -> Self {
-                let weak = std::sync::Arc::new(());
-                Self {
-                    #init_logic
-                }
+                Self::new_vec::<1>().pop().expect("Should have created at least one model")
             }
 
             pub fn new_vec<const LEN: usize>() -> Vec<Self> {
-                let weak = std::sync::Arc::new(());
+                let weak = ();
                 let mut models = Vec::with_capacity(LEN);
                 for _ in 0..LEN {
                     models.push(Self {

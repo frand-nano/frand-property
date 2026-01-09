@@ -9,13 +9,13 @@ pub struct Property<T, C = ()> {
 }
 
 pub struct Sender<T, C = ()> {
-    component: Arc<C>,
+    component: C,
     sender: watch::Sender<T>,
     receiver: watch::Receiver<T>,
     set: Arc<dyn Fn(&C, T) + Send + Sync>,
 }
 
-impl<T, C> Clone for Sender<T, C> {
+impl<T, C> Clone for Sender<T, C> where C: Clone {
     fn clone(&self) -> Self {
         Self {
             component: self.component.clone(),
@@ -29,7 +29,7 @@ impl<T, C> Clone for Sender<T, C> {
 impl<T: fmt::Debug, C> fmt::Debug for Sender<T, C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Sender")
-            .field("component", &"Arc<C>")
+            .field("component", &"C")
             .field("sender", &self.sender)
             .field("receiver", &self.receiver)
             .finish()
@@ -48,7 +48,7 @@ impl<T, C> Property<T, C> {
     pub fn receiver_mut(&mut self) -> &mut Receiver<T> { &mut self.receiver }
 
     pub fn new(
-        component: Arc<C>,
+        component: C,
         initial_value: T,
         set: impl Fn(&C, T) + 'static + Send + Sync,
     ) -> Self where T: Copy + Send + Sync {

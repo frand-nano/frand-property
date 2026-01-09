@@ -15,7 +15,7 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
     let field_defs = generate_field_defs(input);
     
     // Scalar logic (Length = 1)
-    let body_logic_scalar = generate_logic_impl(quote! { 1 }, struct_data_name, &global_type_name, input);
+
     
     // Array logic (Length = LEN)
     let body_logic_array = generate_logic_impl(quote! { LEN }, struct_data_name, &global_type_name, input);
@@ -28,17 +28,14 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
         }
 
         impl<C: slint::ComponentHandle + 'static> #model_name<C> {
-            pub fn new(component: &C) -> Self where for<'a> #global_type_name<'a>: slint::Global<'a, C> {
-                use slint::Model as _;
-                let weak = std::sync::Arc::new(component.as_weak());
-
-                let mut models = { #body_logic_scalar };
-                models.pop().expect("Should have created at least one model")
+            pub fn new() -> Self where C: frand_property::SlintSingleton, for<'a> #global_type_name<'a>: slint::Global<'a, C> {
+                Self::new_vec::<1>().pop().expect("Should have created at least one model")
             }
 
-            pub fn new_vec<const LEN: usize>(component: &C) -> Vec<Self> where for<'a> #global_type_name<'a>: slint::Global<'a, C> {
+            pub fn new_vec<const LEN: usize>() -> Vec<Self> where C: frand_property::SlintSingleton, for<'a> #global_type_name<'a>: slint::Global<'a, C> {
                  use slint::Model as _;
-                 let weak = std::sync::Arc::new(component.as_weak());
+                 let weak = C::get_singleton_instance();
+                 let component = weak.upgrade().expect("Failed to upgrade singleton instance");
 
                  #body_logic_array
             }

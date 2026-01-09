@@ -11,7 +11,7 @@ export struct ScreenData {
 }
 
 export global ScreenDataGlobal {
-    in-out property <[ScreenData]> data;
+    in-out property <[ScreenData]> data: [{}];
     callback confirm-start(int);
     callback cancel-pay(int);
 }
