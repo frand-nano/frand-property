@@ -10,9 +10,11 @@ mod model;
 
 #[cfg(feature = "slint")]
 mod slint;
+mod stream;
 
 pub use self::{
     property::*,
     slint::*,
     model::*,
+    stream::*,
 };

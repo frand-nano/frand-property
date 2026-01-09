@@ -1,6 +1,10 @@
 use std::fmt;
+use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::watch;
+use tokio::task::JoinHandle;
+use tokio_stream::wrappers::WatchStream;
+use crate::stream::PropertyStreamExt;
 
 #[derive(Debug, Clone)]
 pub struct Property<T, C = ()> {
@@ -26,7 +30,7 @@ impl<T, C> Clone for Sender<T, C> where C: Clone {
     }
 }
 
-impl<T: fmt::Debug, C> fmt::Debug for Sender<T, C> {
+impl<T: Debug, C> Debug for Sender<T, C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Sender")
             .field("component", &"C")
@@ -98,6 +102,30 @@ impl<T> Receiver<T> {
             );
 
         self.value()
+    }
+    
+    pub fn stream(&self) -> WatchStream<T>
+    where
+        T: Clone + Send + Sync + 'static,
+    {
+        WatchStream::new(self.receiver.clone())
+    }
+
+    pub fn spawn<F, Fut>(&self, handler: F) -> JoinHandle<()>
+    where
+        T: Clone + Send + Sync + 'static,
+        F: FnMut(T) -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
+    {
+        self.stream().spawn(handler)
+    }
+
+    pub fn spawn_bind<C>(&self, sender: Sender<T, C>) -> JoinHandle<()>
+    where
+        T: Copy + PartialEq + Send + Sync + 'static,
+        C: Send + Sync + Clone + 'static,
+    {
+        self.stream().spawn_bind(sender)
     }
 }
 

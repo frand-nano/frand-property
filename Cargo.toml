@@ -22,6 +22,8 @@ arraystring = "0.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 tokio = { version = "1.48", features = ["rt", "macros", "sync", "time"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
