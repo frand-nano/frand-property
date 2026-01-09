@@ -10,8 +10,8 @@ slint_model! {
     }
 }
 
-impl<C: slint::ComponentHandle + 'static> System for AdderModel<C> {
-    fn start_system(&self) {
+impl<C: slint::ComponentHandle + 'static> AdderModel<C> {
+    pub fn start(&self) {
         let mut x = self.x.clone();
         let mut y = self.y.clone();
         let sum = self.sum.clone();

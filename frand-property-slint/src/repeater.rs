@@ -11,8 +11,8 @@ slint_model! {
     }
 }
 
-impl<C: slint::ComponentHandle + 'static> System for RepeaterModel<C> {
-    fn start_system(&self) {
+impl<C: slint::ComponentHandle + 'static> RepeaterModel<C> {
+    pub fn start(&self) {
         let mut text = self.text.clone();
         let repeated = self.repeated.clone();
 

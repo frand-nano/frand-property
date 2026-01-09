@@ -11,8 +11,8 @@ slint_model! {
     }
 }
 
-impl<C: slint::ComponentHandle + 'static> System for ScreenModel<C> {
-    fn start_system(&self) {
+impl<C: slint::ComponentHandle + 'static> ScreenModel<C> {
+    pub fn start(&self) {
         let current_screen = self.current_screen.clone();
         let mut confirm_start = self.confirm_start.clone();
         let mut cancel_pay = self.cancel_pay.clone();

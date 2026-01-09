@@ -33,7 +33,7 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
                 let weak = std::sync::Arc::new(component.as_weak());
 
                 let mut models = { #body_logic_scalar };
-                models.pop().expect("Should have created 1 model")
+                models.pop().expect("Should have created at least one model")
             }
 
             pub fn new_vec<const LEN: usize>(component: &C) -> Vec<Self> where for<'a> #global_type_name<'a>: slint::Global<'a, C> {
