@@ -4,8 +4,8 @@ use super::parser;
 use parser::{SlintModel};
 
 pub fn generate(input: &SlintModel) -> String {
-    let global_name = format!("{}Global", input.type_name);
-    let struct_name = input.type_name.to_string();
+    let global_name = input.type_name.to_string();
+    let struct_name = format!("{}Data", input.type_name);
 
     let mut struct_fields = Vec::new();
     let mut global_fields = Vec::new();
@@ -72,7 +72,7 @@ pub fn generate(input: &SlintModel) -> String {
     // 2. 전역 싱글톤 (Global)
     // 3. 컴포넌트 (Component)
 
-    let component_name = format!("{}Component", struct_name);
+    let component_name = format!("{}Component", input.type_name);
     let mut component_fields = Vec::new();
     
     // 기본 인덱스 프로퍼티 추가
@@ -160,7 +160,7 @@ mod tests {
     #[test]
     fn test_generate_adder() {
         let input: SlintModel = parse_quote! {
-            pub AdderModel: AdderData {
+            pub AdderModel: AdderGlobal {
                 in x: i32,
                 out sum: i32,
                 in click: (),
@@ -172,28 +172,28 @@ mod tests {
         println!("{}", output);
 
         // Data 구조체 정의 확인
-        assert!(output.contains("export struct AdderData {"));
+        assert!(output.contains("export struct AdderGlobalData {"));
         assert!(output.contains("x: int,"));
         assert!(output.contains("sum: int,"));
 
         // Global 싱글톤 정의 확인
-        assert!(output.contains("export global AdderDataGlobal {"));
-        assert!(output.contains("in-out property <[AdderData]> data: [{}];"));
+        assert!(output.contains("export global AdderGlobal {"));
+        assert!(output.contains("in-out property <[AdderGlobalData]> data: [{}];"));
         assert!(output.contains("callback click(int);"));
 
         // Component 정의 확인
-        assert!(output.contains("component AdderDataComponent inherits Rectangle {"));
+        assert!(output.contains("component AdderGlobalComponent inherits Rectangle {"));
         assert!(output.contains("in-out property <int> global-index: 0;"));
         
         // 'in' 프로퍼티 확인
-        assert!(output.contains("in-out property <int> global-x: AdderDataGlobal.data[global-index].x;"));
-        assert!(output.contains("changed global-x => { AdderDataGlobal.data[global-index].x = self.global-x; }"));
+        assert!(output.contains("in-out property <int> global-x: AdderGlobal.data[global-index].x;"));
+        assert!(output.contains("changed global-x => { AdderGlobal.data[global-index].x = self.global-x; }"));
 
         // 'out' 프로퍼티 확인
-        assert!(output.contains("out property <int> global-sum: AdderDataGlobal.data[global-index].sum;"));
+        assert!(output.contains("out property <int> global-sum: AdderGlobal.data[global-index].sum;"));
 
         // 유닛 타입 콜백 확인
         assert!(output.contains("callback global-click;"));
-        assert!(output.contains("global-click => { AdderDataGlobal.click(global-index); }"));
+        assert!(output.contains("global-click => { AdderGlobal.click(global-index); }"));
     }
 }

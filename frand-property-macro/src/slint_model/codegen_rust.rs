@@ -9,8 +9,8 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
     let vis = &input.vis;
     let model_name = &input.model_name;
     let type_name = &input.type_name;
-    let struct_data_name = type_name;
-    let global_type_name = format_ident!("{}Global", type_name);
+    let struct_data_name = format_ident!("{}Data", type_name);
+    let global_type_name = type_name;
 
     let field_defs = generate_field_defs(input);
     
@@ -18,7 +18,7 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
 
     
     // Array logic (Length = LEN)
-    let body_logic_array = generate_logic_impl(quote! { LEN }, struct_data_name, &global_type_name, input);
+    let body_logic_array = generate_logic_impl(quote! { LEN }, &struct_data_name, global_type_name, input);
 
     quote! {
         #doc_comment

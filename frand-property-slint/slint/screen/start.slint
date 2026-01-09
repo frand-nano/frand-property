@@ -2,7 +2,7 @@ import { Button, VerticalBox } from "std-widgets.slint";
 import { Adder } from "../components/adder.slint";
 import {
     AdderVec,
-    AdderVecDataGlobal,
+    AdderVecGlobal,
 } from "../components/adder_array.slint";
 import { Repeater } from "../components/repeater.slint";
 
@@ -20,7 +20,7 @@ export component StartScreen inherits Rectangle {
 
         Adder { }
 
-        for item[i] in AdderVecDataGlobal.data: AdderVec {
+        for item[i] in AdderVecGlobal.data: AdderVec {
             global-index: i;
         }
 

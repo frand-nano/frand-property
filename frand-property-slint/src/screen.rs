@@ -1,10 +1,10 @@
 use frand_property::*;
-use crate::ScreenDataGlobal;
-use crate::ScreenData;
+use crate::ScreenGlobal;
+use crate::ScreenGlobalData;
 use crate::ScreenVariant;
 
 slint_model! {
-    pub ScreenModel: ScreenData {
+    pub ScreenModel: ScreenGlobal {
         out current_screen: ScreenVariant,
         in confirm_start: (),
         in cancel_pay: (),

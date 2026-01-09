@@ -6,26 +6,30 @@ export enum ScreenVariant {
     Pay
 }
 
-export struct ScreenData {
+export struct ScreenGlobalData {
     current-screen: ScreenVariant,
 }
 
-export global ScreenDataGlobal {
-    in-out property <[ScreenData]> data: [{}];
+export global ScreenGlobal {
+    in-out property <[ScreenGlobalData]> data: [{ }];
     callback confirm-start(int);
     callback cancel-pay(int);
 }
 
-component ScreenDataComponent inherits Rectangle {
+component ScreenGlobalComponent inherits Rectangle {
     in-out property <int> global-index: 0;
-    out property <ScreenVariant> global-current-screen: ScreenDataGlobal.data[global-index].current-screen;
+    out property <ScreenVariant> global-current-screen: ScreenGlobal.data[global-index].current-screen;
     callback global-confirm-start;
-    global-confirm-start => { ScreenDataGlobal.confirm-start(global-index); }
+    global-confirm-start => {
+        ScreenGlobal.confirm-start(global-index);
+    }
     callback global-cancel-pay;
-    global-cancel-pay => { ScreenDataGlobal.cancel-pay(global-index); }
+    global-cancel-pay => {
+        ScreenGlobal.cancel-pay(global-index);
+    }
 }
 
-export component Screen inherits ScreenDataComponent {
+export component Screen inherits ScreenGlobalComponent {
     if root.global-current-screen == ScreenVariant.Start: StartScreen {
         on-confirm => {
             root.global-confirm-start();

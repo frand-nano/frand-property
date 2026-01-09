@@ -1,25 +1,29 @@
 import { Button, VerticalBox, HorizontalBox } from "std-widgets.slint";
 
-export struct AdderData {
+export struct AdderGlobalData {
     x: int,
     y: int,
     sum: int,
 }
 
-export global AdderDataGlobal {
-    in-out property <[AdderData]> data: [{}];
+export global AdderGlobal {
+    in-out property <[AdderGlobalData]> data: [{ }];
 }
 
-component AdderDataComponent inherits Rectangle {
+component AdderGlobalComponent inherits Rectangle {
     in-out property <int> global-index: 0;
-    in-out property <int> global-x: AdderDataGlobal.data[global-index].x;
-    changed global-x => { AdderDataGlobal.data[global-index].x = self.global-x; }
-    in-out property <int> global-y: AdderDataGlobal.data[global-index].y;
-    changed global-y => { AdderDataGlobal.data[global-index].y = self.global-y; }
-    out property <int> global-sum: AdderDataGlobal.data[global-index].sum;
+    in-out property <int> global-x: AdderGlobal.data[global-index].x;
+    changed global-x => {
+        AdderGlobal.data[global-index].x = self.global-x;
+    }
+    in-out property <int> global-y: AdderGlobal.data[global-index].y;
+    changed global-y => {
+        AdderGlobal.data[global-index].y = self.global-y;
+    }
+    out property <int> global-sum: AdderGlobal.data[global-index].sum;
 }
 
-export component Adder inherits AdderDataComponent {
+export component Adder inherits AdderGlobalComponent {
     VerticalBox {
         Text {
             text: "X: " + root.global-x;

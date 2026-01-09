@@ -1,5 +1,5 @@
 use frand_property::slint_model;
-use crate::{AdderVecData, AdderVecDataGlobal};
+use crate::{AdderVecGlobal, AdderVecGlobalData};
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use futures::future::BoxFuture;
@@ -7,7 +7,7 @@ use futures::future::BoxFuture;
 const PROP_LEN: usize = 3;
 
 slint_model! {
-    pub AdderVecModel: AdderVecData {
+    pub AdderVecModel: AdderVecGlobal {
         in values: i32[PROP_LEN],
         out sum: i32,
     }

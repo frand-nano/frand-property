@@ -1,11 +1,11 @@
 use frand_property::*;
-use crate::RepeaterData;
-use crate::RepeaterDataGlobal;
+use crate::RepeaterGlobal;
+use crate::RepeaterGlobalData;
 use arraystring::ArrayString;
 use arraystring::typenum::U41;
 
 slint_model! {
-    pub RepeaterModel: RepeaterData {
+    pub RepeaterModel: RepeaterGlobal {
         in text: ArrayString<U20>,
         out repeated: ArrayString<U41>,
     }

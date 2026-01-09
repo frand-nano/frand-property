@@ -1,9 +1,9 @@
 use frand_property::*;
-use crate::AdderDataGlobal;
-use crate::AdderData;
+use crate::AdderGlobal;
+use crate::AdderGlobalData;
 
 slint_model! {
-    pub AdderModel: AdderData {
+    pub AdderModel: AdderGlobal {
         in x: i32,
         in y: i32,
         out sum: i32,
