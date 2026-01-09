@@ -1,6 +1,5 @@
 use frand_property::*;
 use crate::AdderGlobal;
-use crate::AdderGlobalData;
 
 slint_model! {
     pub AdderModel: AdderGlobal {

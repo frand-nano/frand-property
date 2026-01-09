@@ -1,6 +1,5 @@
 use frand_property::*;
 use crate::RepeaterGlobal;
-use crate::RepeaterGlobalData;
 use arraystring::ArrayString;
 use arraystring::typenum::U41;
 

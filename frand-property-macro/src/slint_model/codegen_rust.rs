@@ -9,7 +9,6 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
     let vis = &input.vis;
     let model_name = &input.model_name;
     let type_name = &input.type_name;
-    let struct_data_name = format_ident!("{}Data", type_name);
     let global_type_name = type_name;
 
     let field_defs = generate_field_defs(input);
@@ -18,7 +17,7 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
 
     
     // Array logic (Length = LEN)
-    let body_logic_array = generate_logic_impl(quote! { LEN }, &struct_data_name, global_type_name, input);
+    let body_logic_array = generate_logic_impl(quote! { LEN }, global_type_name, input);
 
     quote! {
         #doc_comment
@@ -87,7 +86,6 @@ fn generate_struct_init_fields(input: &SlintModel) -> Vec<TokenStream> {
 
 fn generate_logic_impl(
     array_len_tokens: TokenStream,
-    struct_data_name: &syn::Ident,
     global_type_name: &syn::Ident,
     input: &SlintModel
 ) -> TokenStream {
@@ -98,7 +96,7 @@ fn generate_logic_impl(
     let struct_init_ids = generate_struct_init_fields(input);
     let mut loop_body = Vec::new();
 
-    let mut slint_data_fields_init = Vec::new();
+    let mut slint_data_assignments = Vec::new();
     let mut rust_struct_fields_init = Vec::new();
 
     let mut signal_init_block = Vec::new();
@@ -154,7 +152,7 @@ fn generate_logic_impl(
                 let (setup, init) = generate_in_array_setup(f_name, len, &resolved_elem_ty);
                 loop_body.push(setup);
                 rust_struct_fields_init.push(quote! { #f_name });
-                slint_data_fields_init.push(init);
+                slint_data_assignments.push(init);
             } else {
                 let resolved_elem_ty = resolve_type(&arr.elem);
                 loop_body.push(quote! {
@@ -178,8 +176,8 @@ fn generate_logic_impl(
                     let #f_name = #f_senders;
                 });
                 rust_struct_fields_init.push(quote! { #f_name });
-                slint_data_fields_init.push(quote! {
-                    #f_name: slint::ModelRc::new(std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len])))
+                slint_data_assignments.push(quote! {
+                    slint_row_data.#f_name = slint::ModelRc::new(std::rc::Rc::new(slint::VecModel::from(vec![Default::default(); #len])));
                 });
             }
         } else {
@@ -190,7 +188,7 @@ fn generate_logic_impl(
                     let #f_name = #f_prop.receiver().clone();
                 });
                  rust_struct_fields_init.push(quote! { #f_name });
-                 slint_data_fields_init.push(quote! { #f_name: Default::default() });
+                 // Scalar fields set by template clone, no explicit assignment needed
             } else {
                 // Out Scalar
                 let setter = if is_special_string_type(f_ty) {
@@ -215,7 +213,7 @@ fn generate_logic_impl(
                     let #f_name = #out_prop_logic.sender().clone();
                 });
                 rust_struct_fields_init.push(quote! { #f_name });
-                slint_data_fields_init.push(quote! { #f_name: Default::default() });
+                 // Scalar fields set by template clone, no explicit assignment needed
             }
         }
     }
@@ -277,6 +275,8 @@ fn generate_logic_impl(
         // 시그널 필드 설정 (배열)
         #(#signal_init_block)*
 
+        let template_data = component.global::<#global_type_name>().get_data().row_data(0).expect("Global data should have at least 1 element from Slint initialization");
+
         for i in 0..#array_len_tokens {
             #(#loop_body)*
             
@@ -286,9 +286,9 @@ fn generate_logic_impl(
                 #(#struct_init_ids),*
             });
             
-            slint_data.push(#struct_data_name {
-                #(#slint_data_fields_init),*
-            });
+            let mut slint_row_data = template_data.clone();
+            #(#slint_data_assignments)*
+            slint_data.push(slint_row_data);
         }
 
         let inner_model = std::rc::Rc::new(slint::VecModel::from(slint_data.clone()));
@@ -361,7 +361,7 @@ fn generate_in_array_setup(
     };
 
     let init = quote! {
-        #f_name: slint::ModelRc::new(std::rc::Rc::new(notify_model))
+        slint_row_data.#f_name = slint::ModelRc::new(std::rc::Rc::new(notify_model));
     };
 
     (setup, init)

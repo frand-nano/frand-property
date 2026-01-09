@@ -1,5 +1,5 @@
 use frand_property::slint_model;
-use crate::{AdderVecGlobal, AdderVecGlobalData};
+use crate::AdderVecGlobal;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use futures::future::BoxFuture;

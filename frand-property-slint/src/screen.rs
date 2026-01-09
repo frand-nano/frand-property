@@ -1,6 +1,5 @@
 use frand_property::*;
 use crate::ScreenGlobal;
-use crate::ScreenGlobalData;
 use crate::ScreenVariant;
 
 slint_model! {
