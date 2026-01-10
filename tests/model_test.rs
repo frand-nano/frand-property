@@ -148,7 +148,40 @@ async fn test_model_extension_methods() {
     assert_eq!(senders.len(), 5);
     assert_eq!(receivers.len(), 5);
     
+
     senders[0].count.send(100);
     assert_eq!(receivers[0].count.value(), 100);
     assert_eq!(models[0].count.receiver().value(), 100);
+}
+
+// 8. Iterator Bind 테스트
+#[tokio::test]
+async fn test_iterator_bind() {
+    use frand_property::PropertyIteratorExt;
+    use frand_property::ModelList;
+    
+    // Source: 값을 변경할 모델들
+    let source_models = BasicModel::new_vec::<5>();
+    
+    // Target: 값이 전달될 타겟 모델들
+    let target_models = BasicModel::new_vec::<5>();
+    let target_senders = target_models.clone_senders();
+    
+    // Source의 receiver들을 Target의 sender들에 바인딩
+    // source.count -> target.count
+    source_models.iter()
+        .map(|m| m.count.receiver())
+        .spawn_bind(target_senders.iter().map(|s| s.count.clone()));
+        
+    // Source 값 변경
+    source_models[0].count.sender().send(12345);
+    source_models[4].count.sender().send(98765);
+    
+    // 비동기 전달 대기
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    
+    // Target 값 확인
+    assert_eq!(target_models[0].count.receiver().value(), 12345);
+    assert_eq!(target_models[1].count.receiver().value(), 0); // 변경 안됨
+    assert_eq!(target_models[4].count.receiver().value(), 98765);
 }

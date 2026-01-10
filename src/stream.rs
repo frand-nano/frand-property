@@ -1,7 +1,8 @@
+use std::borrow::Borrow;
 use tokio::task::JoinHandle;
 pub use tokio_stream::StreamExt;
 use tokio_stream::Stream;
-use crate::{Sender};
+use crate::{Receiver, Sender};
 
 pub trait PropertyStreamExt: Stream {
     fn drive<F, Fut>(self, mut handler: F) -> impl Future<Output = ()> + Send + 'static
@@ -55,3 +56,21 @@ pub trait PropertyStreamExt: Stream {
 }
 
 impl<S: Stream> PropertyStreamExt for S {}
+
+pub trait PropertyIteratorExt: Iterator {
+    fn spawn_bind<T, C>(self, senders: impl IntoIterator<Item = Sender<T, C>>) -> Vec<JoinHandle<()>>
+    where
+        Self: Sized,
+        Self::Item: Borrow<Receiver<T>>,
+        T: Copy + PartialEq + Send + Sync + 'static,
+        C: Send + Sync + Clone + 'static,
+    {
+        self.zip(senders)
+            .map(|(receiver, sender)|
+                receiver.borrow().spawn_bind(sender)
+            )
+            .collect()
+    }
+}
+
+impl<I> PropertyIteratorExt for I where I: Iterator {}
