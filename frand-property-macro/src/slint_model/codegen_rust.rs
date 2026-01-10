@@ -10,6 +10,7 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
     let model_name = &input.model_name;
     let type_name = &input.type_name;
     let global_type_name = type_name;
+    let instances_ident = format_ident!("{}_INSTANCES", model_name.to_string().to_uppercase());
 
     let field_defs = generate_field_defs(input);
     
@@ -19,24 +20,64 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
     // Array logic (Length = LEN)
     let body_logic_array = generate_logic_impl(quote! { LEN }, global_type_name, input);
 
+    let field_names_for_clone: Vec<_> = input.fields.iter().map(|f| {
+        let name = &f.name;
+        quote! { #name: self.#name.clone() }
+    }).collect();
+
+    let field_names_for_debug: Vec<_> = input.fields.iter().map(|f| {
+        let name = &f.name;
+        quote! { .field(stringify!(#name), &self.#name) }
+    }).collect();
+
     quote! {
+        static #instances_ident: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<std::any::TypeId, Box<dyn std::any::Any + Send + Sync>>>> = std::sync::OnceLock::new();
+
         #doc_comment
-        #[derive(Debug, Clone)]
         #vis struct #model_name<C: slint::ComponentHandle> {
             #(#field_defs),*
         }
 
+        impl<C: slint::ComponentHandle> Clone for #model_name<C> {
+            fn clone(&self) -> Self {
+                Self {
+                    #(#field_names_for_clone),*
+                }
+            }
+        }
+
+        impl<C: slint::ComponentHandle> std::fmt::Debug for #model_name<C> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.debug_struct(stringify!(#model_name))
+                 #(#field_names_for_debug)*
+                 .finish()
+            }
+        }
+
         impl<C: slint::ComponentHandle + 'static> #model_name<C> {
-            pub fn new() -> Self where C: frand_property::SlintSingleton, for<'a> #global_type_name<'a>: slint::Global<'a, C> {
-                Self::new_vec::<1>().pop().expect("Should have created at least one model")
+            pub fn clone_singleton() -> Self where C: frand_property::SlintSingleton, for<'a> #global_type_name<'a>: slint::Global<'a, C> {
+                Self::clone_singleton_vec::<1>().pop().expect("Should have created at least one model")
             }
 
-            pub fn new_vec<const LEN: usize>() -> Vec<Self> where C: frand_property::SlintSingleton, for<'a> #global_type_name<'a>: slint::Global<'a, C> {
+            pub fn clone_singleton_vec<const LEN: usize>() -> Vec<Self> where C: frand_property::SlintSingleton, for<'a> #global_type_name<'a>: slint::Global<'a, C> {
+                 let map = #instances_ident.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+                 let mut map = map.lock().unwrap();
+                 let type_id = std::any::TypeId::of::<C>();
+
+                 if let Some(any_vec) = map.get(&type_id) {
+                     return any_vec.downcast_ref::<Vec<Self>>().expect("Type mismatch in singleton store").clone();
+                 }
+
                  use slint::Model as _;
                  let weak = C::clone_singleton();
                  let component = weak.upgrade().expect("Failed to upgrade singleton instance");
 
-                 #body_logic_array
+                 let rust_models = {
+                     #body_logic_array
+                 };
+
+                 map.insert(type_id, Box::new(rust_models.clone()));
+                 rust_models
             }
         }
     }
