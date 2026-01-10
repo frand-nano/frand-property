@@ -1,5 +1,5 @@
 use frand_property::slint_model;
-use crate::AdderVecGlobal;
+use crate::{AdderVecGlobal, MainWindow};
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use futures::future::BoxFuture;
@@ -13,7 +13,7 @@ slint_model! {
     }
 }
 
-impl<C: slint::ComponentHandle + 'static> AdderVecModel<C> {
+impl AdderVecModel<MainWindow> {
     pub fn start(&self) {
         let values = self.values.clone();
         let sum = self.sum.clone();

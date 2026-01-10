@@ -1,5 +1,5 @@
 use frand_property::*;
-use crate::ScreenGlobal;
+use crate::{MainWindow, ScreenGlobal};
 use crate::ScreenVariant;
 
 slint_model! {
@@ -10,7 +10,7 @@ slint_model! {
     }
 }
 
-impl<C: slint::ComponentHandle + 'static> ScreenModel<C> {
+impl ScreenModel<MainWindow> {
     pub fn start(&self) {
         let current_screen = self.current_screen.clone();
         let mut confirm_start = self.confirm_start.clone();

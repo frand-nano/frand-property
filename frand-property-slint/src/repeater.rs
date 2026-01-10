@@ -1,5 +1,5 @@
 use frand_property::*;
-use crate::RepeaterGlobal;
+use crate::{MainWindow, RepeaterGlobal};
 use arraystring::ArrayString;
 use arraystring::typenum::U41;
 
@@ -10,7 +10,7 @@ slint_model! {
     }
 }
 
-impl<C: slint::ComponentHandle + 'static> RepeaterModel<C> {
+impl RepeaterModel<MainWindow> {
     pub fn start(&self) {
         let mut text = self.text.clone();
         let repeated = self.repeated.clone();

@@ -33,7 +33,7 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
 
             pub fn new_vec<const LEN: usize>() -> Vec<Self> where C: frand_property::SlintSingleton, for<'a> #global_type_name<'a>: slint::Global<'a, C> {
                  use slint::Model as _;
-                 let weak = C::get_singleton_instance();
+                 let weak = C::clone_singleton();
                  let component = weak.upgrade().expect("Failed to upgrade singleton instance");
 
                  #body_logic_array

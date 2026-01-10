@@ -17,7 +17,7 @@ slint::include_modules!();
 static MAIN_WINDOW: OnceLock<slint::Weak<MainWindow>> = OnceLock::new();
 
 impl SlintSingleton for MainWindow {
-    fn get_singleton_instance() -> slint::Weak<Self> {
+    fn clone_singleton() -> slint::Weak<Self> {
         MAIN_WINDOW.get().expect("MAIN_WINDOW not initialized").clone()
     }
 }

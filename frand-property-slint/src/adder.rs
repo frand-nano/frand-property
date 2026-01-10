@@ -1,5 +1,5 @@
 use frand_property::*;
-use crate::AdderGlobal;
+use crate::{AdderGlobal, MainWindow};
 
 slint_model! {
     pub AdderModel: AdderGlobal {
@@ -9,7 +9,7 @@ slint_model! {
     }
 }
 
-impl<C: slint::ComponentHandle + 'static> AdderModel<C> {
+impl AdderModel<MainWindow> {
     pub fn start(&self) {
         let mut x = self.x.clone();
         let mut y = self.y.clone();
