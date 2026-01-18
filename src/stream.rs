@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::future::Future;
 use tokio::task::JoinHandle;
 pub use tokio_stream::StreamExt;
 use tokio_stream::Stream;

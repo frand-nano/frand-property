@@ -1,5 +1,6 @@
 use std::fmt;
 use std::fmt::Debug;
+use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
@@ -154,5 +155,61 @@ impl<T, C> Sender<T, C> {
                 // self 가 sender 와 receiver 를 모두 소유하기 때문에 receiver 는 언제나 존재합니다.
                 unreachable!("Receiver is already dropped.")
             );
+    }
+}
+
+pub trait PropertyList<T, C> {
+    fn into_senders(self) -> Vec<Sender<T, C>>;
+    fn into_receivers(self) -> Vec<Receiver<T>>;
+}
+
+impl<'a, T, C, I> PropertyList<T, C> for I
+where
+    I: IntoIterator<Item = &'a Property<T, C>>,
+    T: 'a + Clone,
+    C: 'a + Clone,
+{
+    fn into_senders(self) -> Vec<Sender<T, C>> {
+        self.into_iter().map(|p| p.sender.clone()).collect()
+    }
+
+    fn into_receivers(self) -> Vec<Receiver<T>> {
+        self.into_iter().map(|p| p.receiver.clone()).collect()
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Clone)]
+    struct Component {
+        #[allow(dead_code)]
+        id: usize,
+    }
+
+    #[test]
+    fn test_property_list_into_senders_receivers() {
+        let p1 = Property::new(Component { id: 1 }, 10, |_, _| {});
+        let p2 = Property::new(Component { id: 2 }, 20, |_, _| {});
+        
+        let props = vec![p1, p2];
+        
+        let senders = props.iter().into_senders();
+        assert_eq!(senders.len(), 2);
+        
+        let receivers = props.iter().into_receivers();
+        assert_eq!(receivers.len(), 2);
+        
+        assert_eq!(receivers[0].value(), 10);
+        assert_eq!(receivers[1].value(), 20);
+    }
+
+    #[test]
+    fn test_property_list_from_slice() {
+        let p1 = Property::new((), 10, |_, _| {});
+        let props = [p1];
+        
+        let senders = props.into_senders();
+        assert_eq!(senders.len(), 1);
     }
 }
