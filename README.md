@@ -12,6 +12,7 @@
     - **배열 필드 지원**: `field: type[N]` 문법으로 고정 길이 배열 프로퍼티를 처리할 수 있습니다.
 - **반응형 상태 관리**: Rust의 `System` 트레이트와 `tokio` 비동기 런타임을 결합하여 UI 이벤트를 효율적으로 처리합니다.
 - **최적화된 렌더링**: 내부적으로 `SlintNotifyModel`을 사용하여 변경된 데이터만 세밀하게 업데이트하므로 불필요한 리렌더링을 방지합니다.
+- **편리한 바인딩**: `spawn_bind`를 이용해 Receiver 값을 Sender로 손쉽게 포워딩할 수 있습니다.
 
 ## 설치
 
@@ -19,7 +20,7 @@
 
 ```toml
 [dependencies]
-frand-property = "0.2.3"
+frand-property = "0.3.1"
 slint = "1.8"
 tokio = { version = "1", features = ["full"] }
 ```
@@ -57,7 +58,7 @@ slint_model! {
 const PROP_LEN: usize = 5;  // 각 필드의 배열 길이
 
 slint_model! {
-    // AdderVecModel 정의 (인스턴스 생성 시 new_vec 사용)
+    // AdderVecModel 정의 (인스턴스 생성 시 clone_singleton_vec 사용)
     pub AdderVecModel: AdderVecData {
         // [in] 배열 필드
         // Rust 타입: Vec<frand_property::Receiver<i32>>
@@ -135,7 +136,8 @@ impl<C: slint::ComponentHandle + 'static> System for AdderModel<C> {
 
 ### 4. 메인 함수에서 실행
 
-`main.rs`에서 모델을 초기화하고 시스템을 시작합니다. WASM 환경을 고려하여 구성할 수 있습니다.
+`main.rs`에서 싱글톤을 초기화하고 모델을 가져와 시스템을 시작합니다.
+모든 모델은 **싱글톤(Singleton)**으로 관리되므로, 최초 1회 `window.init_singleton()` 호출이 필요합니다.
 
 ```rust
 const MODEL_LEN: usize = 2; // 모델 인스턴스 개수
@@ -144,13 +146,17 @@ const MODEL_LEN: usize = 2; // 모델 인스턴스 개수
 async fn main() -> Result<(), slint::PlatformError> {
     let window = MainWindow::new()?;
 
-    // 1. 단일 모델 생성 (Slint Global과 바인딩됨)
-    let adder_model = AdderModel::<MainWindow>::new(&window);
+    // 필수: 싱글톤 저장소 초기화
+    window.init_singleton();
+
+    // 1. 단일 모델 가져오기 (Slint Global과 바인딩됨)
+    // clone_singleton()은 최초 호출 시 내부적으로 인스턴스를 생성하고 캐싱합니다.
+    let adder_model = AdderModel::<MainWindow>::clone_singleton();
     adder_model.start_system();
     
-    // 2. 배열 모델 생성 (여러 인스턴스 한 번에 생성)
-    // new_vec::<LEN>() 메소드를 사용하여 Vec<AdderVecModel>을 반환받습니다.
-    let adder_vec_models = AdderVecModel::<MainWindow>::new_vec::<MODEL_LEN>(&window);
+    // 2. 배열 모델 가져오기 (여러 인스턴스)
+    // clone_singleton_vec::<LEN>()을 사용하여 Vec<AdderVecModel>을 반환받습니다.
+    let adder_vec_models = AdderVecModel::<MainWindow>::clone_singleton_vec::<MODEL_LEN>();
     for model in adder_vec_models {
         model.start_system();
     }
@@ -159,12 +165,22 @@ async fn main() -> Result<(), slint::PlatformError> {
     Ok(())
 }
 
-// 편의 기능: Sender / Receiver 일괄 변환
-// frand_property::ModelList 트레이트를 임포트하면 Vec<Model>에서 바로 변환 가능합니다.
-use frand_property::ModelList;
+// 편의 기능: Sender / Receiver 일괄 변환 및 바인딩
+// frand_property::ModelList 및 PropertyList 트레이트를 임포트하여 사용합니다.
+use frand_property::{ModelList, PropertyList};
 
+// 모델 리스트에서 Senders/Receivers 추출
 let senders = adder_vec_models.clone_senders();
 let receivers = adder_vec_models.clone_receivers();
+
+// spawn_bind로 Receiver 값을 다른 Sender로 자동 포워딩
+// 개별 바인딩
+let rx = receivers[0].clone();
+let tx = senders[1].clone();
+rx.spawn_bind(tx);
+
+// 이터레이터 일괄 바인딩 (Vec<Receiver> -> Vec<Sender>)
+receivers.iter().spawn_bind(senders);
 ```
 
 ## 구조

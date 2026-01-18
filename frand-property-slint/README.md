@@ -11,7 +11,7 @@
     - `components/`: UI 컴포넌트 (`adder.slint`, `repeater.slint` 등)
     - `screen/`: 화면별 레이아웃 (`start.slint`, `pay.slint`)
 - **`src/`**: Rust 로직 구현
-    - `main.rs`: 애플리케이션 진입점 및 시스템 초기화
+    - `main.rs`: 애플리케이션 진입점 및 시스템 초기화 (싱글톤 Setup)
     - `adder.rs`: 단일 모델 패턴 예제 (`AdderModel`)
     - `adder_array.rs`: 배열 모델 및 배열 필드 패턴 예제 (`AdderVecModel`)
     - `screen.rs`: 화면 전환 로직 예제 (`ScreenModel`)
@@ -32,7 +32,7 @@
 - **특징**:
     - `slint_model!`에서 배열 필드를 정의하는 방법을 보여줍니다 (`values: i32[N]`).
     - **`FuturesUnordered`**를 사용하여 배열 내의 개별 요소 변경을 효율적으로 감지하고 처리하는 패턴을 제시합니다.
-    - 모델을 동적으로 여러 개 생성하는 방법(`new_vec::<N>`)을 보여줍니다.
+    - 모델을 동적으로 여러 개 생성하는 방법(`clone_singleton_vec::<N>`)을 보여줍니다.
 
 ### 3. Screen (이벤트 및 상태 관리)
 - **파일**: `src/screen.rs`
