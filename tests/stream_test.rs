@@ -3,8 +3,8 @@ use tokio::time::Duration;
 
 #[tokio::test]
 async fn test_stream_bind() {
-    let source = Property::new((), 0, |_, _| {});
-    let target = Property::new((), 0, |_, _| {});
+    let source = Property::from(0);
+    let target = Property::from(0);
 
     source.receiver()
         .stream()
@@ -25,7 +25,7 @@ async fn test_stream_bind() {
 
 #[tokio::test]
 async fn test_spawn_drive() {
-    let source = Property::new((), 0, |_, _| {});
+    let source = Property::from(0);
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
 
     source.receiver()

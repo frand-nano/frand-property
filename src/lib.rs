@@ -11,10 +11,13 @@ mod model;
 #[cfg(feature = "slint")]
 mod slint;
 mod stream;
+mod receiver_group;
+
 
 pub use self::{
     property::*,
     slint::*,
     model::*,
     stream::*,
+    receiver_group::*,
 };

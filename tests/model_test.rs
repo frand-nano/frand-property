@@ -1,7 +1,8 @@
-use frand_property::model;
+use frand_property::{model, Property, ReceiverGroup};
 use frand_property::arraystring::{ArrayString, typenum::U20};
 use std::time::Duration;
 use tokio::time::sleep;
+
 
 // 1. 기본 모델 정의 테스트
 model! {
@@ -184,4 +185,27 @@ async fn test_iterator_bind() {
     assert_eq!(target_models[0].count.receiver().value(), 12345);
     assert_eq!(target_models[1].count.receiver().value(), 0); // 변경 안됨
     assert_eq!(target_models[4].count.receiver().value(), 98765);
+}
+
+// 9. Tuple spawn_bind 테스트
+#[tokio::test]
+async fn test_tuple_spawn_bind() {
+    let p1 = Property::from(1);
+    let p2 = Property::from(2);
+    
+    // 바인딩할 타겟 속성
+    let mut target = Property::from((0, 0));
+
+    let tuple = (p1.receiver().clone(), p2.receiver().clone());
+    
+    // 튜플의 변경사항을 타겟 송신자에 바인딩
+    tuple.spawn_bind(target.sender());
+
+    p1.sender().send(10);
+    target.receiver_mut().changed().await;
+    assert_eq!(target.receiver().value(), (10, 2));
+
+    p2.sender().send(20);
+    target.receiver_mut().changed().await;
+    assert_eq!(target.receiver().value(), (10, 20));
 }

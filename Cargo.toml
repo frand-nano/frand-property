@@ -18,7 +18,9 @@ slint = ["dep:slint"]
 frand-property-macro = { path = "frand-property-macro" }
 
 slint = { version = "1.14", optional = true }
+
 arraystring = "0.3"
+async-trait = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "sync", "time"] }
