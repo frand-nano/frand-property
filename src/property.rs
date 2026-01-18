@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 use tokio_stream::wrappers::WatchStream;
+use crate::ReceiverGroup;
 use crate::stream::PropertyStreamExt;
 
 #[derive(Debug, Clone)]
@@ -16,6 +17,12 @@ pub struct Property<T, C = ()> {
 impl<T: Copy + Send + Sync> From<T> for Property<T> {
     fn from(value: T) -> Self {
         Self::new((), value, |_, _| {})
+    }
+}
+
+impl<T: Default + Copy + Send + Sync> Default for Property<T> {
+    fn default() -> Self {
+        Self::from(T::default())
     }
 }
 
@@ -133,6 +140,15 @@ impl<T> Receiver<T> {
         C: Send + Sync + Clone + 'static,
     {
         self.stream().spawn_bind(sender)
+    }
+    
+    pub fn from_spawn_bind<G: ReceiverGroup<Item = T>>(group: G) -> Self 
+    where T: Default + Copy + PartialEq + Send + Sync + 'static {
+        let property = Property::<T>::default();
+
+        group.spawn_bind(property.sender);
+        
+        property.receiver
     }
 }
 

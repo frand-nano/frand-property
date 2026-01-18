@@ -13,18 +13,17 @@ pub trait ReceiverGroup: Clone + Send + 'static {
 
     /// 현재 그룹의 변경 사항을 지정된 `Sender`로 바인딩합니다.
     /// 값이 변경될 때마다 `Sender`로 새로운 값을 보냅니다.
-    fn spawn_bind<C>(&self, sender: &Sender<Self::Item, C>) -> JoinHandle<()>
+    fn spawn_bind<C>(&self, sender: Sender<Self::Item, C>) -> JoinHandle<()>
     where
         Self::Item: PartialEq,
         C: Send + Sync + Clone + 'static,
     {
         let mut group = self.clone();
-        let sender_owned = sender.clone();
 
         tokio::spawn(async move {
             loop {
                 group.notified().await;
-                sender_owned.send(group.value());
+                sender.send(group.value());
             }
         })
     }

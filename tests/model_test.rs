@@ -199,7 +199,7 @@ async fn test_tuple_spawn_bind() {
     let tuple = (p1.receiver().clone(), p2.receiver().clone());
     
     // 튜플의 변경사항을 타겟 송신자에 바인딩
-    tuple.spawn_bind(target.sender());
+    tuple.spawn_bind(target.sender().clone());
 
     p1.sender().send(10);
     target.receiver_mut().changed().await;
