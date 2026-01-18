@@ -35,12 +35,14 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
 
         #doc_comment
         #vis struct #model_name<C: slint::ComponentHandle> {
+            _handle: slint::Weak<C>,
             #(#field_defs),*
         }
 
         impl<C: slint::ComponentHandle> Clone for #model_name<C> {
             fn clone(&self) -> Self {
                 Self {
+                    _handle: self._handle.clone(),
                     #(#field_names_for_clone),*
                 }
             }
@@ -324,9 +326,11 @@ fn generate_logic_impl(
             #(#scalar_in_senders_collect)*
 
             rust_models.push(Self {
+                _handle: weak.clone(),
                 #(#struct_init_ids),*
             });
-            
+
+            #[allow(unused_mut)]
             let mut slint_row_data = template_data.clone();
             #(#slint_data_assignments)*
             slint_data.push(slint_row_data);
