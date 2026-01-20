@@ -41,6 +41,7 @@ slint_model! {
 |---|---|---|---|---|
 | **`in`** | Slint → Rust | `in-out property` | `frand_property::Receiver<T>` | Slint에서 값이 변경되면 Rust에서 감지합니다. |
 | **`out`** | Rust → Slint | `out property` | `frand_property::Sender<C, T>` | Rust에서 값을 보내면 Slint UI가 업데이트됩니다. |
+| **`model`** | Internal (Rust) | (없음/무시됨) | `Struct` / `Vec<Struct>` | 다른 `Model`을 중첩하여 포함합니다. Slint 코드 생성에는 영향을 주지 않습니다. |
 | **`[N]`** | - | `[type]` (배열) | `Vec<...>` | 필드 이름 뒤에 붙으면 해당 타입의 `Vec`을 생성하는 배열 필드가 됩니다. (모델 이름 뒤에는 붙이지 않습니다) |
 
 ### 고급 기능
@@ -59,6 +60,24 @@ slint_model! {
 export global AdderModelGlobal {
     in-out property <[AdderData]> data;
     // ...
+}
+```
+
+
+#### 4. 중첩 모델 (Nested Models)
+`model` 키워드를 사용하여 모델 내부에 다른 모델을 포함할 수 있습니다. 이는 Rust 코드 구조를 계층화하는 데 유용하지만, Slint 데이터 생성에서는 제외됩니다.
+
+```rust
+slint_model! {
+    pub InnerModel: InnerData { in id: i32 }
+}
+
+slint_model! {
+    pub OuterModel: OuterData {
+        model inner: InnerModel,       // 단일 중첩
+        model children: InnerModel[3], // 배열 중첩
+        out name: String,
+    }
 }
 ```
 

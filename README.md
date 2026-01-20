@@ -71,6 +71,32 @@ slint_model! {
 }
 ```
 
+```
+
+만약 다른 모델을 포함하는 중첩 구조가 필요한 경우 `model` 키워드를 사용합니다:
+
+```rust
+slint_model! {
+    pub InnerModel: InnerData {
+        in id: i32,
+    }
+}
+
+slint_model! {
+    pub OuterModel: OuterData {
+        // 단일 중첩 모델
+        model inner: InnerModel,
+        
+        // 배열 중첩 모델
+        model children: InnerModel[3],
+        
+        out name: String,
+    }
+}
+```
+
+> **주의**: `model` 키워드로 정의된 필드는 Rust 코드 구성을 위한 것이며, Slint 코드(`Data` 구조체) 생성 시에는 제외됩니다. 즉, Slint 측에서는 해당 필드가 존재하지 않는 것처럼 동작하므로 별도로 데이터 매핑이 필요하지 않습니다.
+
 ### 2. Slint 파일 정의
 
 Slint 파일에서는 데이터 구조체(`struct`)와 이를 담을 전역 싱글톤(`global`)을 정의해야 합니다. 매크로는 `{ModelName}Global`이라는 이름의 글로벌 객체와 상호작용합니다.
