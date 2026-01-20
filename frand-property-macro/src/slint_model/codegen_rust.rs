@@ -14,10 +14,10 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
 
     let field_defs = generate_field_defs(input);
     
-    // Scalar logic (Length = 1)
+    // 스칼라 로직 (길이 = 1)
 
     
-    // Array logic (Length = LEN)
+    // 배열 로직 (길이 = LEN)
     let body_logic_array = generate_logic_impl(quote! { LEN }, global_type_name, input);
 
     let field_names_for_clone: Vec<_> = input.fields.iter().map(|f| {
@@ -93,8 +93,21 @@ fn generate_field_defs(input: &SlintModel) -> Vec<TokenStream> {
         let direction = &f.direction;
         let is_unit = is_unit_ty(f_ty);
 
-        if let Type::Array(arr) = f_ty {
-            let elem_ty = &arr.elem;
+        let (is_array, elem_ty) = if let Type::Array(arr) = f_ty {
+            (true, arr.elem.as_ref())
+        } else {
+            (false, f_ty)
+        };
+
+        if *direction == Direction::Model {
+             // 중첩 모델: 단순 Rust 타입으로 포함
+             let resolved_ty = resolve_type(elem_ty);
+             if is_array {
+                 quote! { #f_vis #f_name: Vec<#resolved_ty> }
+             } else {
+                 quote! { #f_vis #f_name: #resolved_ty }
+             }
+        } else if is_array {
             let resolved_elem_ty = resolve_type(elem_ty);
             if *direction == Direction::Out {
                 quote! { #f_vis #f_name: Vec<frand_property::Sender<#resolved_elem_ty, slint::Weak<C>>> }
@@ -183,21 +196,31 @@ fn generate_logic_impl(
         let f_name = &f.name;
         let f_ty = &f.ty;
         let f_prop = format_ident!("{}_prop", f_name);
-        
-        if let Type::Array(arr) = f_ty {
-            let len = &arr.len;
-            let f_senders = format_ident!("{}_senders", f_name);
 
+        let (is_array, elem_ty, array_len) = if let Type::Array(arr) = f_ty {
+             (true, arr.elem.as_ref(), Some(&arr.len))
+        } else {
+             (false, f_ty, None)
+        };
+        
+        let resolved_elem_ty = resolve_type(elem_ty);
+
+        if is_array {
+            let len = array_len.unwrap();
+            let f_senders = format_ident!("{}_senders", f_name);
             
             if f.direction == Direction::In {
                 // 배열 IN: 각 요소에 대해 Property 생성
-                let resolved_elem_ty = resolve_type(&arr.elem);
                 let (setup, init) = generate_in_array_setup(f_name, len, &resolved_elem_ty);
                 loop_body.push(setup);
                 rust_struct_fields_init.push(quote! { #f_name });
                 slint_data_assignments.push(init);
+            } else if f.direction == Direction::Model {
+                 loop_body.push(quote! {
+                     let #f_name = #resolved_elem_ty::new_vec::<#len>();
+                 });
+                 rust_struct_fields_init.push(quote! { #f_name });
             } else {
-                let resolved_elem_ty = resolve_type(&arr.elem);
                 loop_body.push(quote! {
                     let mut #f_senders = Vec::with_capacity(#len);
                     for j in 0..#len {
@@ -231,7 +254,12 @@ fn generate_logic_impl(
                     let #f_name = #f_prop.receiver().clone();
                 });
                  rust_struct_fields_init.push(quote! { #f_name });
-                 // Scalar fields set by template clone, no explicit assignment needed
+                 // 템플릿 복제로 스칼라 필드 설정, 명시적 할당 불필요
+            } else if f.direction == Direction::Model {
+                 loop_body.push(quote! {
+                     let #f_name = #resolved_elem_ty::new();
+                 });
+                 rust_struct_fields_init.push(quote! { #f_name });
             } else {
                 // Out Scalar
                 let setter = if is_special_string_type(f_ty) {
@@ -250,13 +278,12 @@ fn generate_logic_impl(
                      }
                 };
                 
-                let resolved_ty = resolve_type(f_ty);
-                let out_prop_logic = generate_out_property(global_type_name, setter, resolved_ty);
+                let out_prop_logic = generate_out_property(global_type_name, setter, resolved_elem_ty);
                 loop_body.push(quote! {
                     let #f_name = #out_prop_logic.sender().clone();
                 });
                 rust_struct_fields_init.push(quote! { #f_name });
-                 // Scalar fields set by template clone, no explicit assignment needed
+                 // 템플릿 복제로 스칼라 필드 설정, 명시적 할당 불필요
             }
         }
     }
@@ -276,7 +303,7 @@ fn generate_logic_impl(
             });
             
             if is_special_string_type(&f.ty) {
-                // In diff checks, we need to send converted value.
+                // 변경 사항 확인 시, 변환된 값을 전송해야 합니다.
                 scalar_diff_checks.push(quote! {
                     if new_data.#f_name != old_data.#f_name {
                         if let Some(sender) = #vec_name.get(idx) {

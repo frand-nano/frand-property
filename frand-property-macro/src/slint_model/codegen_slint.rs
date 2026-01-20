@@ -47,6 +47,7 @@ pub fn generate(input: &SlintModel) -> String {
                     // "out sum: i32" -> "property <int> global-sum: Global.data[index].sum;"
                     component_fields.push(format!("    out property <{slint_type}> global-{kebab_name}: {global_name}.data[global-index].{kebab_name};"));
                 }
+                parser::Direction::Model => {}
             }
         }
     }
@@ -92,8 +93,10 @@ pub fn generate(input: &SlintModel) -> String {
                 }
                 parser::Direction::Out => {
                     // Rust -> Slint (Rust 가 쓰고 Slint 가 읽음)
+                    // "out sum: i32" -> "property <int> global-sum: Global.data[index].sum;"
                     component_fields.push(format!("    out property <{slint_type}> global-{kebab_name}: {global_name}.data[global-index].{kebab_name};"));
                 }
+                parser::Direction::Model => {}
             }
         }
     }

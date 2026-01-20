@@ -8,6 +8,7 @@ use syn::{
 pub enum Direction {
     In,
     Out,
+    Model,
 }
 
 pub struct SlintModel {
@@ -56,11 +57,14 @@ impl Parse for SlintModelField {
              if ident == "out" {
                  input.parse::<Ident>()?;
                  Direction::Out
+             } else if ident == "model" {
+                 input.parse::<Ident>()?;
+                 Direction::Model
              } else {
-                 return Err(syn::Error::new(ident.span(), "expected `in`, `out`"));
+                 return Err(syn::Error::new(ident.span(), "expected `in`, `out`, `model`"));
              }
         } else {
-             return Err(input.error("expected `in`, `out`"));
+             return Err(input.error("expected `in`, `out`, `model`"));
         };
 
         let name = input.parse()?;

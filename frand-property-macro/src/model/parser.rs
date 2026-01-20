@@ -16,6 +16,7 @@ pub struct Model {
 // Model 필드 정의
 pub struct ModelField {
     pub vis: Visibility,
+    pub is_model: bool,
     pub name: Ident,
     pub _colon_token: Token![:],
     pub ty: Type,
@@ -38,6 +39,19 @@ impl Parse for ModelField {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let vis: Visibility = input.parse()?;
         
+        let is_model = if input.peek(Ident) {
+            let fork = input.fork();
+            let ident: Ident = fork.parse()?;
+            if ident == "model" {
+                input.parse::<Ident>()?;
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
         // in/out 키워드 없음, 바로 식별자 파싱
         let name = input.parse()?;
         let _colon_token = input.parse()?;
@@ -53,6 +67,7 @@ impl Parse for ModelField {
 
         Ok(ModelField {
             vis,
+            is_model,
             name,
             _colon_token,
             ty,

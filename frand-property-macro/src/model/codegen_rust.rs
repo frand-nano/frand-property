@@ -87,13 +87,26 @@ fn generate_sender_field_defs(input: &Model) -> Vec<TokenStream> {
         let f_ty = &f.ty;
         let f_vis = &f.vis;
 
-        if let Type::Array(arr) = f_ty {
-            let elem_ty = &arr.elem;
-            let resolved_elem_ty = resolve_type(elem_ty);
-            quote! { #f_vis #f_name: Vec<frand_property::Sender<#resolved_elem_ty>> }
+        let (is_array, elem_ty) = if let Type::Array(arr) = f_ty {
+            (true, arr.elem.as_ref())
         } else {
-            let resolved_ty = resolve_type(f_ty);
-            quote! { #f_vis #f_name: frand_property::Sender<#resolved_ty> }
+            (false, f_ty)
+        };
+        
+        let resolved_ty = resolve_type(elem_ty);
+
+        if f.is_model {
+             if is_array {
+                quote! { #f_vis #f_name: Vec<<#resolved_ty as frand_property::Model>::Sender> }
+             } else {
+                 quote! { #f_vis #f_name: <#resolved_ty as frand_property::Model>::Sender }
+             }
+        } else {
+            if is_array {
+                quote! { #f_vis #f_name: Vec<frand_property::Sender<#resolved_ty>> }
+            } else {
+                quote! { #f_vis #f_name: frand_property::Sender<#resolved_ty> }
+            }
         }
     }).collect()
 }
@@ -104,13 +117,26 @@ fn generate_receiver_field_defs(input: &Model) -> Vec<TokenStream> {
         let f_ty = &f.ty;
         let f_vis = &f.vis;
 
-        if let Type::Array(arr) = f_ty {
-            let elem_ty = &arr.elem;
-            let resolved_elem_ty = resolve_type(elem_ty);
-            quote! { #f_vis #f_name: Vec<frand_property::Receiver<#resolved_elem_ty>> }
+        let (is_array, elem_ty) = if let Type::Array(arr) = f_ty {
+            (true, arr.elem.as_ref())
         } else {
-            let resolved_ty = resolve_type(f_ty);
-            quote! { #f_vis #f_name: frand_property::Receiver<#resolved_ty> }
+            (false, f_ty)
+        };
+
+        let resolved_ty = resolve_type(elem_ty);
+
+        if f.is_model {
+             if is_array {
+                quote! { #f_vis #f_name: Vec<<#resolved_ty as frand_property::Model>::Receiver> }
+             } else {
+                 quote! { #f_vis #f_name: <#resolved_ty as frand_property::Model>::Receiver }
+             }
+        } else {
+            if is_array {
+                quote! { #f_vis #f_name: Vec<frand_property::Receiver<#resolved_ty>> }
+            } else {
+                quote! { #f_vis #f_name: frand_property::Receiver<#resolved_ty> }
+            }
         }
     }).collect()
 }
@@ -119,14 +145,28 @@ fn generate_clone_sender_logic(input: &Model) -> Vec<TokenStream> {
     input.fields.iter().map(|f| {
         let f_name = &f.name;
         let f_ty = &f.ty;
+        
+        let is_array = matches!(f_ty, Type::Array(_));
 
-        if let Type::Array(_) = f_ty {
-            quote! {
-                #f_name: self.#f_name.iter().map(|p| p.sender().clone()).collect()
+        if f.is_model {
+            if is_array {
+                quote! {
+                    #f_name: self.#f_name.iter().map(|p| p.clone_sender()).collect()
+                }
+            } else {
+                quote! {
+                    #f_name: self.#f_name.clone_sender()
+                }
             }
         } else {
-            quote! {
-                #f_name: self.#f_name.sender().clone()
+            if is_array {
+                quote! {
+                    #f_name: self.#f_name.iter().map(|p| p.sender().clone()).collect()
+                }
+            } else {
+                quote! {
+                    #f_name: self.#f_name.sender().clone()
+                }
             }
         }
     }).collect()
@@ -136,14 +176,28 @@ fn generate_clone_receiver_logic(input: &Model) -> Vec<TokenStream> {
     input.fields.iter().map(|f| {
         let f_name = &f.name;
         let f_ty = &f.ty;
+        
+        let is_array = matches!(f_ty, Type::Array(_));
 
-        if let Type::Array(_) = f_ty {
-            quote! {
-                #f_name: self.#f_name.iter().map(|p| p.receiver().clone()).collect()
+        if f.is_model {
+            if is_array {
+                quote! {
+                    #f_name: self.#f_name.iter().map(|p| p.clone_receiver()).collect()
+                }
+            } else {
+                quote! {
+                    #f_name: self.#f_name.clone_receiver()
+                }
             }
         } else {
-            quote! {
-                #f_name: self.#f_name.receiver().clone()
+            if is_array {
+                quote! {
+                    #f_name: self.#f_name.iter().map(|p| p.receiver().clone()).collect()
+                }
+            } else {
+                quote! {
+                    #f_name: self.#f_name.receiver().clone()
+                }
             }
         }
     }).collect()
@@ -155,13 +209,26 @@ fn generate_field_defs(input: &Model) -> Vec<TokenStream> {
         let f_ty = &f.ty;
         let f_vis = &f.vis;
 
-        if let Type::Array(arr) = f_ty {
-            let elem_ty = &arr.elem;
-            let resolved_elem_ty = resolve_type(elem_ty);
-            quote! { #f_vis #f_name: Vec<frand_property::Property<#resolved_elem_ty>> }
+        let (is_array, elem_ty) = if let Type::Array(arr) = f_ty {
+            (true, arr.elem.as_ref())
         } else {
-            let resolved_ty = resolve_type(f_ty);
-            quote! { #f_vis #f_name: frand_property::Property<#resolved_ty> }
+            (false, f_ty)
+        };
+        
+        let resolved_ty = resolve_type(elem_ty);
+
+        if f.is_model {
+             if is_array {
+                quote! { #f_vis #f_name: Vec<#resolved_ty> }
+             } else {
+                 quote! { #f_vis #f_name: #resolved_ty }
+             }
+        } else {
+            if is_array {
+                quote! { #f_vis #f_name: Vec<frand_property::Property<#resolved_ty>> }
+            } else {
+                quote! { #f_vis #f_name: frand_property::Property<#resolved_ty> }
+            }
         }
     }).collect()
 }
@@ -170,33 +237,50 @@ fn generate_init_fields(input: &Model) -> Vec<TokenStream> {
     input.fields.iter().map(|f| {
         let f_name = &f.name;
         let f_ty = &f.ty;
-
-        if let Type::Array(arr) = f_ty {
-            let len = &arr.len;
-            let elem_ty = &arr.elem;
-            let resolved_elem_ty = resolve_type(elem_ty);
-
-            quote! {
-                #f_name: {
-                    let mut props = Vec::with_capacity(#len);
-                    for _ in 0..#len {
-                        props.push(frand_property::Property::<#resolved_elem_ty>::new(
-                            weak.clone(),
-                            Default::default(),
-                            |_, _| {}
-                        ));
-                    }
-                    props
-                }
-            }
+        
+        let (is_array, elem_ty, array_len) = if let Type::Array(arr) = f_ty {
+             (true, arr.elem.as_ref(), Some(&arr.len))
         } else {
-            let resolved_ty = resolve_type(f_ty);
-            quote! {
-                #f_name: frand_property::Property::<#resolved_ty>::new(
-                    weak.clone(),
-                    Default::default(),
-                    |_, _| {}
-                )
+             (false, f_ty, None)
+        };
+        
+        let resolved_ty = resolve_type(elem_ty);
+
+        if f.is_model {
+             if is_array {
+                let len = array_len.unwrap();
+                quote! {
+                    #f_name: #resolved_ty::new_vec::<#len>()
+                }
+             } else {
+                 quote! {
+                     #f_name: #resolved_ty::new()
+                 }
+             }
+        } else {
+            if is_array {
+                let len = array_len.unwrap();
+                quote! {
+                    #f_name: {
+                        let mut props = Vec::with_capacity(#len);
+                        for _ in 0..#len {
+                            props.push(frand_property::Property::<#resolved_ty>::new(
+                                weak.clone(),
+                                Default::default(),
+                                |_, _| {}
+                            ));
+                        }
+                        props
+                    }
+                }
+            } else {
+                quote! {
+                    #f_name: frand_property::Property::<#resolved_ty>::new(
+                        weak.clone(),
+                        Default::default(),
+                        |_, _| {}
+                    )
+                }
             }
         }
     }).collect()
