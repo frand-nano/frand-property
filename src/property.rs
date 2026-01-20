@@ -92,8 +92,38 @@ impl<T> Receiver<T> {
         *self.receiver.borrow()
     }
 
-    pub fn has_changed(&self) -> bool {
+    pub fn has_notified(&self) -> bool {
         self.receiver.has_changed().unwrap_or(false)
+    }
+
+    pub fn mark_notified(&mut self) {
+        self.receiver.mark_changed();
+    }
+
+    pub fn mark_unnotified(&mut self) {
+        self.receiver.mark_unchanged();
+    }
+
+    pub fn clone_notified(&self) -> Self {
+        let mut result = Self {
+            receiver: self.receiver.clone(),
+            sender: self.sender.clone(),
+        };
+
+        result.mark_notified();
+
+        result
+    }
+
+    pub fn clone_unnotified(&self) -> Self {
+        let mut result = Self {
+            receiver: self.receiver.clone(),
+            sender: self.sender.clone(),
+        };
+
+        result.mark_unnotified();
+
+        result
     }
 
     pub async fn changed(&mut self) -> T where T: Copy + PartialEq {
@@ -170,6 +200,10 @@ impl<T, C> Sender<T, C> {
     pub fn notify(&self) where T: Copy {
         let value = *self.receiver.borrow();
 
+        self.notify_with(value);
+    }
+
+    pub fn notify_with(&self, value: T) where T: Copy {
         (self.set)(&self.component, value);
 
         self.sender.send(value)

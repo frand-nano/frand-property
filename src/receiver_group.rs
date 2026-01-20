@@ -23,7 +23,7 @@ pub trait ReceiverGroup: Clone + Send + 'static {
         tokio::spawn(async move {
             loop {
                 group.notified().await;
-                sender.send(group.value());
+                sender.notify_with(group.value());
             }
         })
     }

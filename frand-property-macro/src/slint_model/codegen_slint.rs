@@ -7,9 +7,10 @@ pub fn generate(input: &SlintModel) -> String {
     let global_name = input.type_name.to_string();
     let struct_name = format!("{}Data", input.type_name);
 
+    let global_data = format!("    in-out property <[{struct_name}]> data: [{{}}];");
+    
     let mut struct_fields = Vec::new();
-    let mut global_fields = Vec::new();
-    let mut data_prop_emitted = false;
+    let mut global_fields = vec![global_data];
 
     let mut component_fields = Vec::new();
     
@@ -32,11 +33,6 @@ pub fn generate(input: &SlintModel) -> String {
              struct_fields.push(
                 format!("    {kebab_name}: {slint_type},")
             );
-            
-            if !data_prop_emitted {
-                 global_fields.push(format!("    in-out property <[{struct_name}]> data: [{{}}];"));
-                 data_prop_emitted = true;
-            }
 
             match field.direction {
                 parser::Direction::In => {

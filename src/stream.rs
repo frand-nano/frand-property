@@ -31,7 +31,7 @@ pub trait PropertyStreamExt: Stream {
         self.drive(move |value| {
             let sender = sender.clone();
             async move {
-                sender.send(value);
+                sender.notify_with(value);
             }
         })
     }
