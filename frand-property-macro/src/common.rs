@@ -1,6 +1,7 @@
-use proc_macro2::TokenStream;
+use proc_macro2::{TokenStream};
 use quote::quote;
-use syn::Type;
+use syn::parse::ParseStream;
+use syn::{Ident, Token, Type};
 
 pub fn resolve_type(ty: &Type) -> TokenStream {
     if let Type::Path(tp) = ty {
@@ -39,6 +40,35 @@ pub fn is_unit_ty(ty: &Type) -> bool {
         t.elems.is_empty()
     } else {
         false
+    }
+}
+
+pub fn parse_len_expr(input: ParseStream) -> syn::Result<TokenStream> {
+    use quote::quote;
+    if input.peek(syn::Lit) {
+        let lit: syn::Lit = input.parse()?;
+        Ok(quote! { #lit })
+    } else if input.peek(Token![*]) {
+        input.parse::<Token![*]>()?;
+        let ident: Ident = input.parse()?;
+        Ok(quote! { *#ident })
+    } else if input.peek(Ident) {
+        let ident: Ident = input.parse()?;
+        Ok(quote! { #ident })
+    } else {
+        Err(input.error("Expected literal, identifier, or *identifier inside brackets"))
+    }
+}
+
+pub fn generate_vec_init_tokens(len: impl quote::ToTokens, elem_ty: impl quote::ToTokens) -> TokenStream {
+    quote! {
+        {
+            let mut v: std::vec::Vec<#elem_ty> = std::vec::Vec::with_capacity(#len);
+            for _ in 0..#len {
+                v.push(<#elem_ty as Default>::default());
+            }
+            v
+        }
     }
 }
 

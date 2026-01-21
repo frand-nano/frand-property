@@ -21,6 +21,32 @@ pub fn generate(input: &Model) -> TokenStream {
     let clone_sender_logic = generate_clone_sender_logic(input);
     let clone_receiver_logic = generate_clone_receiver_logic(input);
 
+    let (new_ret_ty, new_body) = if let Some(len) = &input.len {
+        (
+            quote! { std::sync::Arc<[Self]> },
+            quote! {
+                let weak = ();
+                let mut models = std::vec::Vec::with_capacity(#len);
+                for _ in 0..#len {
+                    models.push(Self {
+                        #init_logic
+                    });
+                }
+                models.into()
+            }
+        )
+    } else {
+        (
+            quote! { Self },
+            quote! {
+                let weak = ();
+                Self {
+                    #init_logic
+                }
+            }
+        )
+    };
+
     quote! {
         #[derive(Debug, Clone)]
         #vis struct #model_name {
@@ -38,19 +64,8 @@ pub fn generate(input: &Model) -> TokenStream {
         }
 
         impl #model_name {
-            pub fn new() -> Self {
-                Self::new_vec::<1>().pop().expect("Should have created at least one model")
-            }
-
-            pub fn new_vec<const LEN: usize>() -> Vec<Self> {
-                let weak = ();
-                let mut models = Vec::with_capacity(LEN);
-                for _ in 0..LEN {
-                    models.push(Self {
-                        #init_logic
-                    });
-                }
-                models
+            pub fn new() -> #new_ret_ty {
+                #new_body
             }
             
             pub fn clone_sender(&self) -> #sender_name {
@@ -250,7 +265,13 @@ fn generate_init_fields(input: &Model) -> Vec<TokenStream> {
              if is_array {
                 let len = array_len.unwrap();
                 quote! {
-                    #f_name: #resolved_ty::new_vec::<#len>()
+                    #f_name: {
+                        let mut models = std::vec::Vec::with_capacity(#len);
+                        for _ in 0..#len {
+                            models.push(#resolved_ty::new());
+                        }
+                        models
+                    }
                 }
              } else {
                  quote! {
@@ -262,7 +283,7 @@ fn generate_init_fields(input: &Model) -> Vec<TokenStream> {
                 let len = array_len.unwrap();
                 quote! {
                     #f_name: {
-                        let mut props = Vec::with_capacity(#len);
+                        let mut props = std::vec::Vec::with_capacity(#len);
                         for _ in 0..#len {
                             props.push(frand_property::Property::<#resolved_ty>::new(
                                 weak.clone(),

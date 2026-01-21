@@ -32,7 +32,7 @@
 - **특징**:
     - `slint_model!`에서 배열 필드를 정의하는 방법을 보여줍니다 (`values: i32[N]`).
     - **`FuturesUnordered`**를 사용하여 배열 내의 개별 요소 변경을 효율적으로 감지하고 처리하는 패턴을 제시합니다.
-    - 모델을 동적으로 여러 개 생성하는 방법(`clone_singleton_vec::<N>`)을 보여줍니다.
+    - 모델을 동적으로 여러 개 생성하는 방법(`AdderVecModel[N]` 정의 및 `clone_singleton` 사용)을 보여줍니다.
 
 ### 3. Screen (이벤트 및 상태 관리)
 - **파일**: `src/screen.rs`

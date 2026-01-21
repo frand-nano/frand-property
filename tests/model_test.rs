@@ -70,14 +70,14 @@ fn test_array_field() {
 // 3. 모델 배열 테스트
 const MODEL_COUNT: usize = 3;
 model! {
-    pub ItemModel {
+    pub ItemModel[MODEL_COUNT] {
         pub id: i32,
     }
 }
 
 #[test]
 fn test_model_vec() {
-    let models = ItemModel::new_vec::<MODEL_COUNT>(); // Vec<ItemModel> 반환
+    let models = ItemModel::new(); // Arc<[ItemModel]> 반환
     
     assert_eq!(models.len(), 3);
     
@@ -140,7 +140,13 @@ async fn test_vec_model_sender_receiver() {
 async fn test_model_extension_methods() {
     use frand_property::ModelList; // Trait import
     
-    let models = BasicModel::new_vec::<5>();
+    let models = {
+        let mut v = Vec::with_capacity(5);
+        for _ in 0..5 {
+            v.push(BasicModel::new());
+        }
+        v
+    };
     
     // 메소드 문법 호출
     let senders = models.clone_senders();
@@ -162,10 +168,22 @@ async fn test_iterator_bind() {
     use frand_property::ModelList;
     
     // Source: 값을 변경할 모델들
-    let source_models = BasicModel::new_vec::<5>();
+    let source_models = {
+        let mut v = Vec::with_capacity(5);
+        for _ in 0..5 {
+            v.push(BasicModel::new());
+        }
+        v
+    };
     
     // Target: 값이 전달될 타겟 모델들
-    let target_models = BasicModel::new_vec::<5>();
+    let target_models = {
+        let mut v = Vec::with_capacity(5);
+        for _ in 0..5 {
+            v.push(BasicModel::new());
+        }
+        v
+    };
     let target_senders = target_models.clone_senders();
     
     // Source의 receiver들을 Target의 sender들에 바인딩
@@ -208,4 +226,21 @@ async fn test_tuple_spawn_bind() {
     p2.sender().send(20);
     target.receiver_mut().changed().await;
     assert_eq!(target.receiver().value(), (10, 20));
+}
+
+use std::sync::LazyLock;
+
+static LAZY_LEN: LazyLock<usize> = LazyLock::new(|| 4);
+
+model! {
+    pub LazyModel[*LAZY_LEN] {
+        pub value: i32,
+    }
+}
+
+#[test]
+fn test_lazy_lock_len() {
+    let models = LazyModel::new();
+    assert_eq!(models.len(), *LAZY_LEN);
+    assert_eq!(models.len(), 4);
 }

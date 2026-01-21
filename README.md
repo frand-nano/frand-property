@@ -20,7 +20,7 @@
 
 ```toml
 [dependencies]
-frand-property = "0.3.1"
+frand-property = "0.3.3"
 slint = "1.8"
 tokio = { version = "1", features = ["full"] }
 ```
@@ -56,10 +56,12 @@ slint_model! {
 
 ```rust
 const PROP_LEN: usize = 5;  // 각 필드의 배열 길이
+const MODEL_LEN: usize = 2; // 모델 인스턴스 개수
 
 slint_model! {
-    // AdderVecModel 정의 (인스턴스 생성 시 clone_singleton_vec 사용)
-    pub AdderVecModel: AdderVecData {
+    // AdderVecModel 정의 (배열 모델: [MODEL_LEN])
+    // 인스턴스 생성 시 clone_singleton()은 Arc<[Self]>를 반환합니다.
+    pub AdderVecModel[MODEL_LEN]: AdderVecData {
         // [in] 배열 필드
         // Rust 타입: Vec<frand_property::Receiver<i32>>
         in values: i32[PROP_LEN],
@@ -166,8 +168,6 @@ impl<C: slint::ComponentHandle + 'static> System for AdderModel<C> {
 모든 모델은 **싱글톤(Singleton)**으로 관리되므로, 최초 1회 `window.init_singleton()` 호출이 필요합니다.
 
 ```rust
-const MODEL_LEN: usize = 2; // 모델 인스턴스 개수
-
 #[tokio::main]
 async fn main() -> Result<(), slint::PlatformError> {
     let window = MainWindow::new()?;
@@ -181,9 +181,9 @@ async fn main() -> Result<(), slint::PlatformError> {
     adder_model.start_system();
     
     // 2. 배열 모델 가져오기 (여러 인스턴스)
-    // clone_singleton_vec::<LEN>()을 사용하여 Vec<AdderVecModel>을 반환받습니다.
-    let adder_vec_models = AdderVecModel::<MainWindow>::clone_singleton_vec::<MODEL_LEN>();
-    for model in adder_vec_models {
+    // 정의 단계에서 길이가 지정된 모델은 clone_singleton() 호출 시 Arc<[Model]>을 반환합니다.
+    let adder_vec_models = AdderVecModel::<MainWindow>::clone_singleton();
+    for model in adder_vec_models.iter() {
         model.start_system();
     }
 

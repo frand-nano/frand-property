@@ -17,6 +17,7 @@ use frand_property::slint_model;
 use crate::MyData; // Slint에서 생성된 Struct
 
 const ARRAY_LEN: usize = 4;   // 배열 필드 길이
+const MODEL_LEN: usize = 2;   // 모델 인스턴스 길이
 
 slint_model! {
     // 1. 단일 모델 정의
@@ -25,9 +26,9 @@ slint_model! {
         out output_val: i32,
     }
 
-    // 2. 배열 모델 정의 (매크로 단계에서는 단일 모델과 동일하게 정의)
-    // 인스턴스 생성 시 MyVecModel::clone_singleton_vec::<N>()을 호출하여 Vec<MyVecModel>을 반환받습니다.
-    pub MyVecModel: MyData {
+    // 2. 배열 모델 정의 (모델 이름 뒤에 [LEN] 명시)
+    // 인스턴스 생성 시 MyVecModel::clone_singleton()을 호출하면 Arc<[MyVecModel]>을 반환합니다.
+    pub MyVecModel[MODEL_LEN]: MyData {
         // 3. 배열 필드 정의 (Vec<Receiver<...>> 생성)
         in inputs: i32[ARRAY_LEN],
         out outputs: i32[ARRAY_LEN],
@@ -42,12 +43,12 @@ slint_model! {
 | **`in`** | Slint → Rust | `in-out property` | `frand_property::Receiver<T>` | Slint에서 값이 변경되면 Rust에서 감지합니다. |
 | **`out`** | Rust → Slint | `out property` | `frand_property::Sender<C, T>` | Rust에서 값을 보내면 Slint UI가 업데이트됩니다. |
 | **`model`** | Internal (Rust) | (없음/무시됨) | `Struct` / `Vec<Struct>` | 다른 `Model`을 중첩하여 포함합니다. Slint 코드 생성에는 영향을 주지 않습니다. |
-| **`[N]`** | - | `[type]` (배열) | `Vec<...>` | 필드 이름 뒤에 붙으면 해당 타입의 `Vec`을 생성하는 배열 필드가 됩니다. (모델 이름 뒤에는 붙이지 않습니다) |
+| **`[N]`** | - | `[type]` (배열) | `Vec<...>` | 모델 또는 필드 이름 뒤에 붙으면 해당 타입의 배열(또는 다수 인스턴스)을 생성합니다. |
 
 ### 고급 기능
 
-#### 1. 배열 모델 생성 (`clone_singleton_vec`)
-모델 정의 시에는 단일 모델처럼 정의하고, Rust 코드에서 인스턴스화할 때 `Model::clone_singleton_vec::<N>()` 메소드를 사용하여 `N`개의 모델이 담긴 `Vec<Model>`을 생성할 수 있습니다. 이는 리스트 뷰나 반복되는 UI 컴포넌트를 제어할 때 유용합니다.
+#### 1. 배열 모델 생성
+모델 정의 시 `ModelName[LEN]` 형식을 사용하면, `Model::clone_singleton()` 메소드가 해당 모델의 `Arc<[Model]>` (배열 슬라이스)를 반환합니다. 이를 통해 리스트 뷰나 반복되는 UI 컴포넌트를 손쉽게 제어할 수 있습니다. 길이는 상수(`const`) 또는 `LazyLock`을 이용한 정적 변수(`*STATIC_VAR`)도 지원합니다.
 
 #### 2. `ArrayString` 지원
 `frand_property::arraystring::ArrayString` 타입을 사용하면 고정 길이 문자열을 효율적으로 처리할 수 있습니다. 이는 Slint의 `string` 타입과 자동으로 매핑되며, 변환 오버헤드를 줄여줍니다.

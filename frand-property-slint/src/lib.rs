@@ -39,8 +39,8 @@ pub fn run() -> Result<(), slint::PlatformError> {
     let adder_model = AdderModel::<MainWindow>::clone_singleton();
     adder_model.start();
 
-    let adder_vec_models = AdderVecModel::<MainWindow>::clone_singleton_vec::<MODEL_LEN>();
-    for model in adder_vec_models {
+    let adder_vec_models = AdderVecModel::<MainWindow>::clone_singleton();
+    for model in adder_vec_models.iter() {
         model.start();
     }
 

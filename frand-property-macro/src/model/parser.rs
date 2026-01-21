@@ -3,11 +3,13 @@ use syn::{
     punctuated::Punctuated,
     token, Ident, Token, Type, Visibility,
 };
+use crate::common::parse_len_expr;
 
 // Model 구조체 정의
 pub struct Model {
     pub vis: Visibility,
     pub model_name: Ident,
+    pub len: Option<proc_macro2::TokenStream>,
 
     pub _brace_token: token::Brace,
     pub fields: Punctuated<ModelField, Token![,]>,
@@ -24,10 +26,22 @@ pub struct ModelField {
 
 impl Parse for Model {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let vis: Visibility = input.parse()?;
+        let model_name: Ident = input.parse()?;
+        
+        let len = if input.peek(token::Bracket) {
+            let content;
+            syn::bracketed!(content in input);
+            Some(parse_len_expr(&content)?)
+        } else {
+            None
+        };
+
         let content;
         Ok(Model {
-            vis: input.parse()?,
-            model_name: input.parse()?,
+            vis,
+            model_name,
+            len,
 
             _brace_token: syn::braced!(content in input),
             fields: content.parse_terminated(ModelField::parse, Token![,])?,
@@ -61,8 +75,8 @@ impl Parse for ModelField {
         if input.peek(token::Bracket) {
             let content;
             syn::bracketed!(content in input);
-            let len: syn::Expr = content.parse()?;
-            ty = syn::parse_quote!([#ty; #len]);
+            let len_tokens = parse_len_expr(&content)?;
+            ty = syn::parse_quote!([#ty; #len_tokens]);
         }
 
         Ok(ModelField {

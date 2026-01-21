@@ -4,10 +4,11 @@ use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use futures::future::BoxFuture;
 
+const MODEL_LEN: usize = 2;
 const PROP_LEN: usize = 3;
 
 slint_model! {
-    pub AdderVecModel: AdderVecGlobal {
+    pub AdderVecModel[MODEL_LEN]: AdderVecGlobal {
         in values: i32[PROP_LEN],
         out sum: i32,
     }
