@@ -13,6 +13,7 @@
 - **반응형 상태 관리**: Rust의 `System` 트레이트와 `tokio` 비동기 런타임을 결합하여 UI 이벤트를 효율적으로 처리합니다.
 - **최적화된 렌더링**: 내부적으로 `SlintNotifyModel`을 사용하여 변경된 데이터만 세밀하게 업데이트하므로 불필요한 리렌더링을 방지합니다.
 - **편리한 바인딩**: `spawn_bind`를 이용해 Receiver 값을 Sender로 손쉽게 포워딩할 수 있습니다.
+- **Slint 파일 자동 생성**: `slint_model!` 매크로를 통해 Slint 모델 파일(`.slint`)을 자동으로 생성하고 관리할 수 있습니다 (`slint-generate-global` feature).
 
 ## 설치
 
@@ -20,9 +21,25 @@
 
 ```toml
 [dependencies]
-frand-property = "0.3.3"
+frand-property = "0.3.4"
 slint = "1.8"
 tokio = { version = "1", features = ["full"] }
+```
+
+### Slint 파일 자동 생성 (선택 사항)
+
+Slint 모델 파일을 자동으로 생성하려면 `slint-generate-global` 기능을 활성화하세요.
+
+```toml
+[dependencies]
+frand-property = { version = "0.3.4", features = ["slint", "slint-generate-global"] }
+```
+
+이 기능을 켜면 컴파일 시 `slint/global/` 폴더에 `.slint` 파일들이 생성되며, `slint/global/index.slint`를 통해 한 번에 export 할 수 있습니다.
+
+```slint
+// components/main.slint
+export * from "../global/index.slint";
 ```
 
 ## 사용 방법
