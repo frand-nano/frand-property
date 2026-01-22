@@ -13,6 +13,7 @@ authors.workspace = true
 [features]
 default = [ "slint" ]
 slint = ["dep:slint"]
+slint-generate-global = ["frand-property-macro/slint-generate-global"]
 
 [dependencies]
 frand-property-macro = { path = "frand-property-macro" }

@@ -1,11 +1,6 @@
-import { ScreenGlobal, Screen } from "screen/screen.slint";
-import { AdderGlobal } from "components/adder.slint";
-import {
-    AdderVecGlobal,
-} from "components/adder_array.slint";
-import { RepeaterGlobal } from "components/repeater.slint";
+export * from "global/index.slint";
 
-export { ScreenGlobal, AdderGlobal, AdderVecGlobal, RepeaterGlobal }
+import { Screen } from "screen/screen.slint";
 
 export component MainWindow inherits Window {
     title: "Main";

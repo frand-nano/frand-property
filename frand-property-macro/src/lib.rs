@@ -14,6 +14,11 @@ pub fn slint_model(input: TokenStream) -> TokenStream {
     // 1. Slint 문서 생성
     let slint_doc = slint_model::codegen_slint::generate(&input);
 
+    #[cfg(feature = "slint-generate-global")]
+    {
+        slint_model::filegen_slint::generate_file(&input);
+    }
+
     // 2. Rust 코드 생성 (문서 포함)
     let expanded = slint_model::codegen_rust::generate(&input, quote::quote! {
         #[doc = #slint_doc]

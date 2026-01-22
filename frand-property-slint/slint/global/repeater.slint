@@ -1,0 +1,15 @@
+export struct RepeaterGlobalData {
+    text: string,
+    repeated: string,
+}
+
+export global RepeaterGlobal {
+    in-out property <[RepeaterGlobalData]> data: [{}];
+}
+
+export component RepeaterGlobalComponent inherits Rectangle {
+    in-out property <int> global-index: 0;
+    in-out property <string> global-text: RepeaterGlobal.data[global-index].text;
+    changed global-text => { RepeaterGlobal.data[global-index].text = self.global-text; }
+    out property <string> global-repeated: RepeaterGlobal.data[global-index].repeated;
+}

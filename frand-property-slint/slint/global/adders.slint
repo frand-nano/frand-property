@@ -1,0 +1,15 @@
+export struct AddersGlobalData {
+    values: [int],
+    sum: int,
+}
+
+export global AddersGlobal {
+    in-out property <[AddersGlobalData]> data: [{}];
+}
+
+export component AddersGlobalComponent inherits Rectangle {
+    in-out property <int> global-index: 0;
+    in-out property <[int]> global-values: AddersGlobal.data[global-index].values;
+    changed global-values => { AddersGlobal.data[global-index].values = self.global-values; }
+    out property <int> global-sum: AddersGlobal.data[global-index].sum;
+}

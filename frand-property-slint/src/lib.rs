@@ -1,7 +1,7 @@
 use std::future::Future;
 use frand_property::SlintSingleton;
 use crate::adder::AdderModel;
-use crate::adder_array::AdderVecModel;
+use crate::adders::AddersModel;
 use crate::screen::ScreenModel;
 
 #[cfg(target_arch = "wasm32")]
@@ -9,7 +9,7 @@ use wasm_bindgen::prelude::*;
 
 mod screen;
 mod adder;
-mod adder_array;
+mod adders;
 mod repeater;
 
 slint::include_modules!();
@@ -39,7 +39,7 @@ pub fn run() -> Result<(), slint::PlatformError> {
     let adder_model = AdderModel::<MainWindow>::clone_singleton();
     adder_model.start();
 
-    let adder_vec_models = AdderVecModel::<MainWindow>::clone_singleton();
+    let adder_vec_models = AddersModel::<MainWindow>::clone_singleton();
     for model in adder_vec_models.iter() {
         model.start();
     }
