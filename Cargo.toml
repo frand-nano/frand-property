@@ -20,7 +20,7 @@ frand-property-macro = { path = "frand-property-macro" }
 
 slint = { version = "1.14", optional = true }
 
-arraystring = "0.3"
+arraystring = { version = "0.3", features = ["serde-traits"] }
 async-trait = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

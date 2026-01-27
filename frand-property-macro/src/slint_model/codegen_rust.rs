@@ -113,16 +113,16 @@ fn generate_field_defs(input: &SlintModel) -> Vec<TokenStream> {
              // 중첩 모델: 단순 Rust 타입으로 포함
              let resolved_ty = resolve_type(elem_ty);
              if is_array {
-                 quote! { #f_vis #f_name: Vec<#resolved_ty> }
+                 quote! { #f_vis #f_name: std::sync::Arc<[#resolved_ty]> }
              } else {
                  quote! { #f_vis #f_name: #resolved_ty }
              }
         } else if is_array {
             let resolved_elem_ty = resolve_type(elem_ty);
             if *direction == Direction::Out {
-                quote! { #f_vis #f_name: Vec<frand_property::Sender<#resolved_elem_ty, slint::Weak<C>>> }
+                quote! { #f_vis #f_name: std::sync::Arc<[frand_property::Sender<#resolved_elem_ty, slint::Weak<C>>]> }
             } else {
-                 quote! { #f_vis #f_name: Vec<frand_property::Receiver<#resolved_elem_ty>> }
+                 quote! { #f_vis #f_name: std::sync::Arc<[frand_property::Receiver<#resolved_elem_ty>]> }
             }
         } else {
             if is_unit {
@@ -315,7 +315,7 @@ fn generate_in_array_setup(
             #f_senders.push(prop.sender().clone());
             #f_receivers.push(prop.receiver().clone());
         }
-        let #f_name = #f_receivers;
+        let #f_name: std::sync::Arc<[frand_property::Receiver<#resolved_elem_ty>]> = #f_receivers.into();
 
         let inner_vec_model: std::rc::Rc<slint::VecModel<#resolved_elem_ty>> = std::rc::Rc::new(slint::VecModel::from(
              #vec_init
@@ -408,7 +408,7 @@ fn process_data_field(
                      for _ in 0..#len {
                          list.push(#resolved_elem_ty::new());
                      }
-                     list
+                     list.into()
                  };
              };
              (loop_body, quote! { #f_name }, quote!{})
@@ -432,7 +432,7 @@ fn process_data_field(
                     );
                     #f_senders.push(prop.sender().clone());
                 }
-                let #f_name = #f_senders;
+                let #f_name: std::sync::Arc<[frand_property::Sender<#resolved_elem_ty, slint::Weak<C>>]> = #f_senders.into();
             };
             let struct_init = quote! { #f_name };
             let slint_assignment = quote! {
@@ -467,7 +467,7 @@ fn process_data_field(
             } else {
                  quote! {
                      if let Some(mut data) = model.row_data(i) {
-                          data.#f_name = v;
+                          data.#f_name = v.into();
                           model.set_row_data(i, data);
                      }
                  }

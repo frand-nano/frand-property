@@ -26,7 +26,7 @@ impl AddersModel<MainWindow> {
             for (idx, rx) in values.iter().enumerate() {
                 let mut rx = rx.clone();
                 futures.push(Box::pin(async move {
-                    let val = rx.changed().await;
+                    let val = rx.modified().await;
                     (idx, val)
                 }));
             }
@@ -36,7 +36,7 @@ impl AddersModel<MainWindow> {
                 // 변경된 인덱스의 퓨처 재등록
                 let mut rx = values[idx].clone();
                 futures.push(Box::pin(async move {
-                    let val = rx.changed().await;
+                    let val = rx.modified().await;
                     (idx, val)
                 }));
 

@@ -26,10 +26,10 @@ async fn test_tuple_spawn_bind() {
     
     p1.sender().send(10);
     // 비동기 전파 대기
-    target.receiver_mut().changed().await;
+    target.receiver_mut().modified().await;
     assert_eq!(target.receiver().value(), (10, 2));
     
     p2.sender().send(20);
-    target.receiver_mut().changed().await;
+    target.receiver_mut().modified().await;
     assert_eq!(target.receiver().value(), (10, 20));
 }

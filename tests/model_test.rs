@@ -41,7 +41,7 @@ async fn test_async_notification() {
     });
 
     // 변경 감지 대기
-    let new_val = receiver.changed().await;
+    let new_val = receiver.modified().await;
     assert_eq!(new_val, 100);
 }
 
@@ -220,11 +220,11 @@ async fn test_tuple_spawn_bind() {
     tuple.spawn_bind(target.sender().clone());
 
     p1.sender().send(10);
-    target.receiver_mut().changed().await;
+    target.receiver_mut().modified().await;
     assert_eq!(target.receiver().value(), (10, 2));
 
     p2.sender().send(20);
-    target.receiver_mut().changed().await;
+    target.receiver_mut().modified().await;
     assert_eq!(target.receiver().value(), (10, 20));
 }
 

@@ -18,10 +18,10 @@ impl AdderModel<MainWindow> {
         crate::spawn(async move {
             loop {
                 tokio::select! {
-                    x = x.changed() => {
+                    x = x.modified() => {
                         sum.send(x + y.value());
                     }
-                    y = y.changed() => {
+                    y = y.modified() => {
                         sum.send(x.value() + y);
                     }
                 }

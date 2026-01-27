@@ -45,6 +45,25 @@ slint_model! {
 | **`model`** | Internal (Rust) | (없음/무시됨) | `Struct` / `Vec<Struct>` | 다른 `Model`을 중첩하여 포함합니다. Slint 코드 생성에는 영향을 주지 않습니다. |
 | **`[N]`** | - | `[type]` (배열) | `Vec<...>` | 모델 또는 필드 이름 뒤에 붙으면 해당 타입의 배열(또는 다수 인스턴스)을 생성합니다. |
 
+## `model!` 매크로
+
+`model!`은 Slint와 독립적으로 순수 Rust 데이터 모델을 생성할 때 사용합니다. `slint_model!`과 동일한 구조를 가지며, `Property`, `Sender`, `Receiver`를 사용하여 반응형 데이터 흐름을 구현합니다.
+
+**싱글톤 지원**: `slint_model!`과 마찬가지로 `clone_singleton()` 메소드를 통해 프로세스 내에서 유일한 인스턴스(또는 인스턴스 배열)를 공유할 수 있습니다.
+
+```rust
+use frand_property::model;
+
+model! {
+    pub MyModel {
+        pub count: i32,
+    }
+}
+
+// 싱글톤 인스턴스 획득
+let model = MyModel::clone_singleton();
+```
+
 ### 고급 기능
 
 #### 1. 배열 모델 생성

@@ -17,7 +17,7 @@ impl RepeaterModel<MainWindow> {
 
         crate::spawn(async move {
             loop {
-                let val = text.changed().await;
+                let val = text.modified().await;
                 
                 let s = format!("{} {}", val, val);
                 

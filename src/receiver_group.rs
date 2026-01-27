@@ -9,7 +9,7 @@ pub trait ReceiverGroup: Clone + Send + 'static {
 
     fn value(&self) -> Self::Item;
 
-    async fn notified(&mut self);
+    async fn notified(&mut self) -> Self::Item;
 
     /// 현재 그룹의 변경 사항을 지정된 `Sender`로 바인딩합니다.
     /// 값이 변경될 때마다 `Sender`로 새로운 값을 보냅니다.
@@ -37,8 +37,8 @@ impl<T: Copy + Send + Sync + 'static> ReceiverGroup for Receiver<T> {
         self.value()
     }
 
-    async fn notified(&mut self) {
-        self.notified().await;
+    async fn notified(&mut self) -> Self::Item {
+        self.notified().await
     }
 }
 
@@ -57,12 +57,13 @@ macro_rules! impl_tuple_merge {
                 ($($T.value()),+)
             }
 
-            async fn notified(&mut self) {
+            async fn notified(&mut self) -> Self::Item {
                 #[allow(non_snake_case)]
                 let ($($T),+) = self;
                 tokio::select! {
                     $( _ = $T.notified() => {} ),+
                 }
+                ($($T.value()),+)
             }
         }
     }

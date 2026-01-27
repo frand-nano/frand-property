@@ -14,6 +14,7 @@ pub fn generate(input: &Model) -> TokenStream {
 
     let sender_name = format_ident!("{}Sender", model_name);
     let receiver_name = format_ident!("{}Receiver", model_name);
+    let instance_ident = format_ident!("{}_INSTANCE", model_name.to_string().to_uppercase());
 
     let sender_field_defs = generate_sender_field_defs(input);
     let receiver_field_defs = generate_receiver_field_defs(input);
@@ -21,9 +22,10 @@ pub fn generate(input: &Model) -> TokenStream {
     let clone_sender_logic = generate_clone_sender_logic(input);
     let clone_receiver_logic = generate_clone_receiver_logic(input);
 
-    let (new_ret_ty, new_body) = if let Some(len) = &input.len {
+    let (new_ret_ty, static_ret_ty, new_body) = if let Some(len) = &input.len {
         (
             quote! { std::sync::Arc<[Self]> },
+            quote! { std::sync::Arc<[#model_name]> },
             quote! {
                 let weak = ();
                 let mut models = std::vec::Vec::with_capacity(#len);
@@ -38,6 +40,7 @@ pub fn generate(input: &Model) -> TokenStream {
     } else {
         (
             quote! { Self },
+            quote! { #model_name },
             quote! {
                 let weak = ();
                 Self {
@@ -48,6 +51,8 @@ pub fn generate(input: &Model) -> TokenStream {
     };
 
     quote! {
+        static #instance_ident: std::sync::OnceLock<#static_ret_ty> = std::sync::OnceLock::new();
+
         #[derive(Debug, Clone)]
         #vis struct #model_name {
             #(#field_defs),*
@@ -66,6 +71,12 @@ pub fn generate(input: &Model) -> TokenStream {
         impl #model_name {
             pub fn new() -> #new_ret_ty {
                 #new_body
+            }
+
+            pub fn clone_singleton() -> #new_ret_ty {
+                #instance_ident.get_or_init(|| {
+                    Self::new()
+                }).clone()
             }
             
             pub fn clone_sender(&self) -> #sender_name {
@@ -112,13 +123,13 @@ fn generate_sender_field_defs(input: &Model) -> Vec<TokenStream> {
 
         if f.is_model {
              if is_array {
-                quote! { #f_vis #f_name: Vec<<#resolved_ty as frand_property::Model>::Sender> }
+                quote! { #f_vis #f_name: std::sync::Arc<[<#resolved_ty as frand_property::Model>::Sender]> }
              } else {
                  quote! { #f_vis #f_name: <#resolved_ty as frand_property::Model>::Sender }
              }
         } else {
             if is_array {
-                quote! { #f_vis #f_name: Vec<frand_property::Sender<#resolved_ty>> }
+                quote! { #f_vis #f_name: std::sync::Arc<[frand_property::Sender<#resolved_ty>]> }
             } else {
                 quote! { #f_vis #f_name: frand_property::Sender<#resolved_ty> }
             }
@@ -142,13 +153,13 @@ fn generate_receiver_field_defs(input: &Model) -> Vec<TokenStream> {
 
         if f.is_model {
              if is_array {
-                quote! { #f_vis #f_name: Vec<<#resolved_ty as frand_property::Model>::Receiver> }
+                quote! { #f_vis #f_name: std::sync::Arc<[<#resolved_ty as frand_property::Model>::Receiver]> }
              } else {
                  quote! { #f_vis #f_name: <#resolved_ty as frand_property::Model>::Receiver }
              }
         } else {
             if is_array {
-                quote! { #f_vis #f_name: Vec<frand_property::Receiver<#resolved_ty>> }
+                quote! { #f_vis #f_name: std::sync::Arc<[frand_property::Receiver<#resolved_ty>]> }
             } else {
                 quote! { #f_vis #f_name: frand_property::Receiver<#resolved_ty> }
             }
@@ -166,7 +177,7 @@ fn generate_clone_sender_logic(input: &Model) -> Vec<TokenStream> {
         if f.is_model {
             if is_array {
                 quote! {
-                    #f_name: self.#f_name.iter().map(|p| p.clone_sender()).collect()
+                    #f_name: self.#f_name.iter().map(|p| p.clone_sender()).collect::<std::vec::Vec<_>>().into()
                 }
             } else {
                 quote! {
@@ -176,7 +187,7 @@ fn generate_clone_sender_logic(input: &Model) -> Vec<TokenStream> {
         } else {
             if is_array {
                 quote! {
-                    #f_name: self.#f_name.iter().map(|p| p.sender().clone()).collect()
+                    #f_name: self.#f_name.iter().map(|p| p.sender().clone()).collect::<std::vec::Vec<_>>().into()
                 }
             } else {
                 quote! {
@@ -197,7 +208,7 @@ fn generate_clone_receiver_logic(input: &Model) -> Vec<TokenStream> {
         if f.is_model {
             if is_array {
                 quote! {
-                    #f_name: self.#f_name.iter().map(|p| p.clone_receiver()).collect()
+                    #f_name: self.#f_name.iter().map(|p| p.clone_receiver()).collect::<std::vec::Vec<_>>().into()
                 }
             } else {
                 quote! {
@@ -207,7 +218,7 @@ fn generate_clone_receiver_logic(input: &Model) -> Vec<TokenStream> {
         } else {
             if is_array {
                 quote! {
-                    #f_name: self.#f_name.iter().map(|p| p.receiver().clone()).collect()
+                    #f_name: self.#f_name.iter().map(|p| p.receiver().clone()).collect::<std::vec::Vec<_>>().into()
                 }
             } else {
                 quote! {
@@ -234,13 +245,13 @@ fn generate_field_defs(input: &Model) -> Vec<TokenStream> {
 
         if f.is_model {
              if is_array {
-                quote! { #f_vis #f_name: Vec<#resolved_ty> }
+                quote! { #f_vis #f_name: std::sync::Arc<[#resolved_ty]> }
              } else {
                  quote! { #f_vis #f_name: #resolved_ty }
              }
         } else {
             if is_array {
-                quote! { #f_vis #f_name: Vec<frand_property::Property<#resolved_ty>> }
+                quote! { #f_vis #f_name: std::sync::Arc<[frand_property::Property<#resolved_ty>]> }
             } else {
                 quote! { #f_vis #f_name: frand_property::Property<#resolved_ty> }
             }
@@ -270,7 +281,7 @@ fn generate_init_fields(input: &Model) -> Vec<TokenStream> {
                         for _ in 0..#len {
                             models.push(#resolved_ty::new());
                         }
-                        models
+                        models.into()
                     }
                 }
              } else {
@@ -291,7 +302,7 @@ fn generate_init_fields(input: &Model) -> Vec<TokenStream> {
                                 |_, _| {}
                             ));
                         }
-                        props
+                        props.into()
                     }
                 }
             } else {

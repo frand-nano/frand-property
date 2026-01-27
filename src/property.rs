@@ -126,7 +126,7 @@ impl<T> Receiver<T> {
         result
     }
 
-    pub async fn changed(&mut self) -> T where T: Copy + PartialEq {
+    pub async fn modified(&mut self) -> T where T: Copy + PartialEq {
         let last_value = self.value();
 
         *self.receiver
