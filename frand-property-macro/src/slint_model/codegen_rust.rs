@@ -1,8 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Type;
-use super::parser;
-use parser::{Direction, SlintModel, SlintModelField};
+use frand_property_build::parser::{Direction, SlintModel, SlintModelField};
 use crate::common::{resolve_type, is_special_string_type, is_unit_ty, generate_vec_init_tokens};
 
 pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {

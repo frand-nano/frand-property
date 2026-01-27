@@ -1,6 +1,6 @@
 [workspace]
-members = ["frand-property-macro", "frand-property-slint"]
-package.version = "0.3.4"
+members = ["frand-property-macro", "frand-property-slint", "frand-property-build"]
+package.version = "0.3.5"
 package.edition = "2021"
 package.authors = ["frand-nano <frand.nano@gmail.com>"]
 
@@ -13,7 +13,7 @@ authors.workspace = true
 [features]
 default = [ "slint" ]
 slint = ["dep:slint"]
-slint-generate-global = ["frand-property-macro/slint-generate-global"]
+slint-build = ["frand-property-macro/slint-build"]
 
 [dependencies]
 frand-property-macro = { path = "frand-property-macro" }

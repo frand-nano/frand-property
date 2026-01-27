@@ -9,9 +9,10 @@ crate-type = ["cdylib", "rlib"]
 
 [build-dependencies]
 slint-build = "1.14"
+frand-property-build = { path = "../frand-property-build" }
 
 [dependencies]
-frand-property = { path = "..", features = ["slint-generate-global"] }
+frand-property = { path = "..", features = ["slint-build"] }
 slint = "1.14"
 
 log = "0.4"

@@ -9,15 +9,10 @@ mod common;
 #[proc_macro]
 #[proc_macro_error]
 pub fn slint_model(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as slint_model::parser::SlintModel);
+    let input = parse_macro_input!(input as frand_property_build::parser::SlintModel);
 
     // 1. Slint 문서 생성
-    let slint_doc = slint_model::codegen_slint::generate(&input);
-
-    #[cfg(feature = "slint-generate-global")]
-    {
-        slint_model::filegen_slint::generate_file(&input);
-    }
+    let slint_doc = frand_property_build::generator::generate_slint_doc(&input);
 
     // 2. Rust 코드 생성 (문서 포함)
     let expanded = slint_model::codegen_rust::generate(&input, quote::quote! {

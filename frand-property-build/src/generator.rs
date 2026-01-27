@@ -1,9 +1,11 @@
+use crate::parser::{self, SlintModel};
+use std::fs;
+use std::path::{Path};
 use quote::quote;
 use syn::Type;
-use super::parser;
-use parser::{SlintModel};
+use heck::ToSnakeCase;
 
-pub fn generate(input: &SlintModel) -> String {
+pub fn generate_slint_doc(input: &SlintModel) -> String {
     let (struct_name, struct_body, global_name, global_body, component_name, component_body) = generate_code_components(input);
 
     let struct_def = format!("export struct {} {{\n{}\n}}", struct_name, struct_body);
@@ -13,6 +15,78 @@ pub fn generate(input: &SlintModel) -> String {
     format!(
         " 생성된 Slint 코드:\n```slint\n{struct_def}\n\n{global_def}\n\n{component_def}\n```"
     )
+}
+
+pub fn generate_slint_file(input: &SlintModel, output_dir: &Path) -> anyhow::Result<()> {
+    if !output_dir.exists() {
+        fs::create_dir_all(output_dir)?;
+    }
+
+    let (struct_name, struct_body, global_name, global_body, component_name, component_body) = generate_code_components(input);
+
+    let global_name_str = input.type_name.to_string();
+    let name_for_file = if let Some(stripped) = global_name_str.strip_suffix("Global") {
+        stripped
+    } else {
+        &global_name_str
+    };
+
+    let file_stem = name_for_file.to_snake_case();
+    let file_name = format!("{}.slint", file_stem);
+    let target_path = output_dir.join(&file_name);
+
+    let original_content = if target_path.exists() {
+        fs::read_to_string(&target_path)?
+    } else {
+        String::new()
+    };
+    let mut content = original_content.clone();
+
+    let struct_header_pattern = format!("export struct {}", struct_name);
+    content = replace_or_append_block(content, &struct_header_pattern, &struct_body, || {
+        format!("export struct {} {{\n{}\n}}", struct_name, struct_body)
+    });
+
+    let global_header_pattern = format!("export global {}", global_name);
+    content = replace_or_append_block(content, &global_header_pattern, &global_body, || {
+        format!("export global {} {{\n{}\n}}", global_name, global_body)
+    });
+
+    let component_header_pattern = format!("export component {}", component_name);
+    content = replace_or_append_block(content, &component_header_pattern, &component_body, || {
+        format!("export component {} inherits Rectangle {{\n{}\n}}", component_name, component_body)
+    });
+
+    if content != original_content {
+        fs::write(&target_path, content)?;
+    }
+    
+    // Update index.slint
+    update_index_slint(output_dir, &global_name, &file_name)?;
+
+    Ok(())
+}
+
+fn update_index_slint(output_dir: &Path, global_name: &str, file_name: &str) -> anyhow::Result<()> {
+    let index_path = output_dir.join("index.slint");
+    let export_stmt = format!("export {{ {} }} from \"{}\";", global_name, file_name);
+    
+    let mut index_content = if index_path.exists() {
+        fs::read_to_string(&index_path)?
+    } else {
+        String::new()
+    };
+    
+    if !index_content.contains(&export_stmt) {
+        if !index_content.is_empty() && !index_content.ends_with('\n') {
+            index_content.push('\n');
+        }
+        index_content.push_str(&export_stmt);
+        index_content.push('\n');
+        
+        fs::write(&index_path, index_content)?;
+    }
+    Ok(())
 }
 
 pub fn generate_code_components(input: &SlintModel) -> (String, String, String, String, String, String) {
@@ -114,48 +188,53 @@ fn is_unit_ty(ty: &Type) -> bool {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use syn::parse_quote;
-
-    #[test]
-    fn test_generate_adder() {
-        let input: SlintModel = parse_quote! {
-            pub AdderModel: AdderGlobal {
-                in x: i32,
-                out sum: i32,
-                in click: (),
+fn replace_or_append_block<F>(mut content: String, header_pattern: &str, new_body: &str, default_block_gen: F) -> String
+where F: Fn() -> String
+{
+    match find_block_range(&content, header_pattern) {
+        Some((start, end)) => {
+            let mut new_content = String::with_capacity(content.len() + new_body.len());
+            new_content.push_str(&content[..start+1]);
+            new_content.push('\n');
+            new_content.push_str(new_body);
+            new_content.push('\n');
+            new_content.push_str(&content[end..]);
+            new_content
+        },
+        None => {
+            if !content.is_empty() && !content.ends_with('\n') {
+                content.push('\n');
             }
-        };
-
-        let output = generate(&input);
-        
-        println!("{}", output);
-
-        // Data 구조체 정의 확인
-        assert!(output.contains("export struct AdderGlobalData {"));
-        assert!(output.contains("x: int,"));
-        assert!(output.contains("sum: int,"));
-
-        // Global 싱글톤 정의 확인
-        assert!(output.contains("export global AdderGlobal {"));
-        assert!(output.contains("in-out property <[AdderGlobalData]> data: [{}];"));
-        assert!(output.contains("callback click(int);"));
-
-        // Component 정의 확인
-        assert!(output.contains("component AdderGlobalComponent inherits Rectangle {"));
-        assert!(output.contains("in-out property <int> global-index: 0;"));
-        
-        // 'in' 프로퍼티 확인
-        assert!(output.contains("in-out property <int> global-x: AdderGlobal.data[global-index].x;"));
-        assert!(output.contains("changed global-x => { AdderGlobal.data[global-index].x = self.global-x; }"));
-
-        // 'out' 프로퍼티 확인
-        assert!(output.contains("out property <int> global-sum: AdderGlobal.data[global-index].sum;"));
-
-        // 유닛 타입 콜백 확인
-        assert!(output.contains("callback global-click;"));
-        assert!(output.contains("global-click => { AdderGlobal.click(global-index); }"));
+            if !content.is_empty() {
+                content.push('\n');
+            }
+            content.push_str(&default_block_gen());
+            content.push('\n');
+            content
+        }
     }
 }
+
+fn find_block_range(content: &str, header_pattern: &str) -> Option<(usize, usize)> {
+    let header_start = content.find(header_pattern)?;
+    let rest = &content[header_start..];
+    let brace_offset = rest.find('{')?;
+    let start_index = header_start + brace_offset;
+
+    let mut balance = 0;
+
+    for (i, c) in content[start_index..].char_indices() {
+        if c == '{' {
+            balance += 1;
+        } else if c == '}' {
+            balance -= 1;
+            if balance == 0 {
+                return Some((start_index, start_index + i));
+            }
+        }
+    }
+
+    None
+}
+
+

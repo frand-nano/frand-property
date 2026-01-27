@@ -3,7 +3,23 @@ use syn::{
     punctuated::Punctuated,
     token, Ident, Token, Type, Visibility,
 };
-use crate::common::parse_len_expr;
+use quote::quote;
+
+pub fn parse_len_expr(input: ParseStream) -> syn::Result<proc_macro2::TokenStream> {
+    if input.peek(syn::Lit) {
+        let lit: syn::Lit = input.parse()?;
+        Ok(quote! { #lit })
+    } else if input.peek(Token![*]) {
+        input.parse::<Token![*]>()?;
+        let ident: Ident = input.parse()?;
+        Ok(quote! { *#ident })
+    } else if input.peek(Ident) {
+        let ident: Ident = input.parse()?;
+        Ok(quote! { #ident })
+    } else {
+        Err(input.error("Expected literal, identifier, or *identifier inside brackets"))
+    }
+}
 
 #[derive(PartialEq, Clone)]
 pub enum Direction {
@@ -53,7 +69,7 @@ impl Parse for SlintModel {
             _colon_token: input.parse()?,
             type_name: input.parse()?,
             _brace_token: syn::braced!(content in input),
-            fields: content.parse_terminated(SlintModelField::parse, Token![,])?,
+            fields: Punctuated::<SlintModelField, Token![,]>::parse_terminated(&content)?,
         })
     }
 }

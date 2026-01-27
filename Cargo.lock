@@ -1555,7 +1555,7 @@ dependencies = [
 
 [[package]]
 name = "frand-property"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "arraystring",
  "async-trait",
@@ -1566,9 +1566,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "frand-property-macro"
-version = "0.3.4"
+name = "frand-property-build"
+version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.111",
+ "walkdir",
+]
+
+[[package]]
+name = "frand-property-macro"
+version = "0.3.5"
+dependencies = [
+ "frand-property-build",
  "proc-macro-error",
  "proc-macro2",
  "quote",
@@ -1577,9 +1590,10 @@ dependencies = [
 
 [[package]]
 name = "frand-property-slint"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "frand-property",
+ "frand-property-build",
  "futures",
  "log",
  "simplelog",
