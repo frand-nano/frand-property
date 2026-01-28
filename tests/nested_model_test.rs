@@ -2,19 +2,19 @@ use frand_property_macro::model;
 
 // Test 1: Instantiation
 model! {
-    pub InnerModel1 {
+    InnerModel1 {
         pub x: i32,
     }
 }
 
 model! {
-    pub InnerModel1Arr[2] {
+    InnerModel1Arr[2] {
         pub x: i32,
     }
 }
 
 model! {
-    pub OuterModel1 {
+    OuterModel1 {
         pub model inner: InnerModel1,
         pub model inner_arr: InnerModel1Arr[],
     }
@@ -46,19 +46,19 @@ fn test_nested_model_instantiation() {
 
 // Test 2: Clone Sender
 model! {
-    pub InnerModel2 {
+    InnerModel2 {
         pub x: i32,
     }
 }
 
 model! {
-    pub InnerModel2Arr[2] {
+    InnerModel2Arr[2] {
         pub x: i32,
     }
 }
 
 model! {
-    pub OuterModel2 {
+    OuterModel2 {
         pub model inner: InnerModel2,
         pub model inner_arr: InnerModel2Arr[],
     }
@@ -80,19 +80,19 @@ fn test_nested_model_clone_sender() {
 
 // Test 3: Clone Receiver
 model! {
-    pub InnerModel3 {
+    InnerModel3 {
         pub x: i32,
     }
 }
 
 model! {
-    pub InnerModel3Arr[2] {
+    InnerModel3Arr[2] {
         pub x: i32,
     }
 }
 
 model! {
-    pub OuterModel3 {
+    OuterModel3 {
         pub model inner: InnerModel3,
         pub model inner_arr: InnerModel3Arr[],
     }
@@ -113,13 +113,13 @@ fn test_nested_model_clone_receiver() {
 
 // Test 4: Implicit Array Length Syntax
 model! {
-    pub InnerModel4[5] {
+    InnerModel4[5] {
         pub x: i32,
     }
 }
 
 model! {
-    pub OuterModel4 {
+    OuterModel4 {
         pub model inner_arr: InnerModel4[],
     }
 }

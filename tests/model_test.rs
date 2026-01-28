@@ -6,7 +6,7 @@ use tokio::time::sleep;
 
 // 1. 기본 모델 정의 테스트
 model! {
-    pub BasicModel1 {
+    BasicModel1 {
         pub count: i32,
         pub name: ArrayString<U20>,
     }
@@ -30,7 +30,7 @@ async fn test_basic_model() {
 }
 
 model! {
-    pub AsyncModel {
+    AsyncModel {
         pub count: i32,
     }
 }
@@ -53,7 +53,7 @@ async fn test_async_notification() {
 
 // 2. 배열 필드 테스트
 model! {
-    pub ArrayFieldModel {
+    ArrayFieldModel {
         pub scores: i32[5],
     }
 }
@@ -76,7 +76,7 @@ fn test_array_field() {
 // 3. 모델 배열 테스트
 const MODEL_COUNT: usize = 3;
 model! {
-    pub ItemModel[MODEL_COUNT] {
+    ItemModel[MODEL_COUNT] {
         pub id: i32,
     }
 }
@@ -97,7 +97,7 @@ fn test_model_vec() {
 
 // 4. 가시성 테스트 (모듈 내부 테스트라 private 접근 가능, 컴파일 여부만 확인)
 model! {
-    pub VisibilityTestModel {
+    VisibilityTestModel {
         pub public_val: i32,
         private_val: i32,
     }
@@ -143,7 +143,7 @@ async fn test_vec_model_sender_receiver() {
 
 // 7. Blanket Extension Trait Method 테스트
 model! {
-    pub ExtensionModel {
+    ExtensionModel {
         pub count: i32,
     }
 }
@@ -176,13 +176,13 @@ async fn test_model_extension_methods() {
 // 8. Iterator Bind 테스트
 const BIND_COUNT: usize = 5;
 model! {
-    pub BindSourceArrayModel[BIND_COUNT] {
+    BindSourceArrayModel[BIND_COUNT] {
         pub count: i32,
     }
 }
 
 model! {
-    pub BindTargetArrayModel[BIND_COUNT] {
+    BindTargetArrayModel[BIND_COUNT] {
         pub count: i32,
     }
 }
@@ -246,7 +246,7 @@ use std::sync::LazyLock;
 static LAZY_LEN: LazyLock<usize> = LazyLock::new(|| 4);
 
 model! {
-    pub LazyModel[*LAZY_LEN] {
+    LazyModel[*LAZY_LEN] {
         pub value: i32,
     }
 }

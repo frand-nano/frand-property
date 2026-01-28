@@ -50,54 +50,106 @@ pub fn generate(input: &Model) -> TokenStream {
         )
     };
 
-    quote! {
-        static #instance_ident: std::sync::OnceLock<#static_ret_ty> = std::sync::OnceLock::new();
+    if let syn::Visibility::Inherited = vis {
+        // Private: Singleton Pattern
+        quote! {
+            static #instance_ident: std::sync::OnceLock<#static_ret_ty> = std::sync::OnceLock::new();
 
-        #[derive(Debug, Clone)]
-        #vis struct #model_name {
-            #(#field_defs),*
-        }
-        
-        #[derive(Debug, Clone)]
-        #vis struct #sender_name {
-            #(#sender_field_defs),*
-        }
-
-        #[derive(Debug, Clone)]
-        #vis struct #receiver_name {
-            #(#receiver_field_defs),*
-        }
-
-        impl #model_name {
-            pub fn clone_singleton() -> #new_ret_ty {
-                #instance_ident.get_or_init(|| {
-                    #new_body
-                }).clone()
+            #[derive(Debug, Clone)]
+            #vis struct #model_name {
+                #(#field_defs),*
             }
             
-            pub fn clone_sender(&self) -> #sender_name {
-                #sender_name {
-                    #(#clone_sender_logic),*
+            #[derive(Debug, Clone)]
+            #vis struct #sender_name {
+                #(#sender_field_defs),*
+            }
+
+            #[derive(Debug, Clone)]
+            #vis struct #receiver_name {
+                #(#receiver_field_defs),*
+            }
+
+            impl #model_name {
+                pub fn clone_singleton() -> #new_ret_ty {
+                    #instance_ident.get_or_init(|| {
+                        #new_body
+                    }).clone()
+                }
+                
+                pub fn clone_sender(&self) -> #sender_name {
+                    #sender_name {
+                        #(#clone_sender_logic),*
+                    }
+                }
+
+                pub fn clone_receiver(&self) -> #receiver_name {
+                    #receiver_name {
+                        #(#clone_receiver_logic),*
+                    }
                 }
             }
 
-            pub fn clone_receiver(&self) -> #receiver_name {
-                #receiver_name {
-                    #(#clone_receiver_logic),*
+            impl frand_property::Model for #model_name {
+                type Sender = #sender_name;
+                type Receiver = #receiver_name;
+
+                fn clone_sender(&self) -> Self::Sender {
+                    self.clone_sender()
+                }
+
+                fn clone_receiver(&self) -> Self::Receiver {
+                    self.clone_receiver()
                 }
             }
         }
-
-        impl frand_property::Model for #model_name {
-            type Sender = #sender_name;
-            type Receiver = #receiver_name;
-
-            fn clone_sender(&self) -> Self::Sender {
-                self.clone_sender()
+    } else {
+        // Public: New Instance Pattern
+        quote! {
+            #[derive(Debug, Clone)]
+            #vis struct #model_name {
+                #(#field_defs),*
+            }
+            
+            #[derive(Debug, Clone)]
+            #vis struct #sender_name {
+                #(#sender_field_defs),*
             }
 
-            fn clone_receiver(&self) -> Self::Receiver {
-                self.clone_receiver()
+            #[derive(Debug, Clone)]
+            #vis struct #receiver_name {
+                #(#receiver_field_defs),*
+            }
+
+            impl #model_name {
+                 pub fn new() -> #new_ret_ty {
+                    #new_body
+                }
+                
+                pub fn clone_sender(&self) -> #sender_name {
+                    #sender_name {
+                        #(#clone_sender_logic),*
+                    }
+                }
+
+                pub fn clone_receiver(&self) -> #receiver_name {
+                    #receiver_name {
+                        #(#clone_receiver_logic),*
+                    }
+                }
+            }
+
+            impl frand_property::Model for #model_name {
+                type Sender = #sender_name;
+                type Receiver = #receiver_name;
+
+                fn clone_sender(&self) -> Self::Sender {
+                    self.clone_sender()
+                }
+
+                fn clone_receiver(&self) -> Self::Receiver {
+                    self.clone_receiver()
+                }
             }
         }
     }

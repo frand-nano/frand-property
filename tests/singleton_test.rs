@@ -1,7 +1,7 @@
 use frand_property::model;
 
 model! {
-    pub SingletonModel {
+    SingletonModel {
         pub count: i32,
     }
 }
@@ -20,7 +20,7 @@ fn test_singleton() {
 }
 
 model! {
-    pub SingletonVecModel[3] {
+    SingletonVecModel[3] {
         pub val: i32,
     }
 }
