@@ -111,6 +111,8 @@ fn generate_sender_field_defs(input: &Model) -> Vec<TokenStream> {
 
         let (is_array, elem_ty) = if let Type::Array(arr) = f_ty {
             (true, arr.elem.as_ref())
+        } else if let Type::Slice(slice) = f_ty {
+            (true, slice.elem.as_ref())
         } else {
             (false, f_ty)
         };
@@ -141,6 +143,8 @@ fn generate_receiver_field_defs(input: &Model) -> Vec<TokenStream> {
 
         let (is_array, elem_ty) = if let Type::Array(arr) = f_ty {
             (true, arr.elem.as_ref())
+        } else if let Type::Slice(slice) = f_ty {
+            (true, slice.elem.as_ref())
         } else {
             (false, f_ty)
         };
@@ -168,7 +172,7 @@ fn generate_clone_sender_logic(input: &Model) -> Vec<TokenStream> {
         let f_name = &f.name;
         let f_ty = &f.ty;
         
-        let is_array = matches!(f_ty, Type::Array(_));
+        let is_array = matches!(f_ty, Type::Array(_) | Type::Slice(_));
 
         if f.is_model {
             if is_array {
@@ -199,7 +203,7 @@ fn generate_clone_receiver_logic(input: &Model) -> Vec<TokenStream> {
         let f_name = &f.name;
         let f_ty = &f.ty;
         
-        let is_array = matches!(f_ty, Type::Array(_));
+        let is_array = matches!(f_ty, Type::Array(_) | Type::Slice(_));
 
         if f.is_model {
             if is_array {
@@ -233,6 +237,8 @@ fn generate_field_defs(input: &Model) -> Vec<TokenStream> {
 
         let (is_array, elem_ty) = if let Type::Array(arr) = f_ty {
             (true, arr.elem.as_ref())
+        } else if let Type::Slice(slice) = f_ty {
+            (true, slice.elem.as_ref())
         } else {
             (false, f_ty)
         };
@@ -241,12 +247,18 @@ fn generate_field_defs(input: &Model) -> Vec<TokenStream> {
 
         if f.is_model {
              if is_array {
+                if let Type::Array(_) = f_ty {
+                      proc_macro_error::abort!(f_name, "Model fields must use implicit length syntax `[]`. Explicit length `[N]` is not allowed for models.");
+                }
                 quote! { #f_vis #f_name: std::sync::Arc<[#resolved_ty]> }
              } else {
                  quote! { #f_vis #f_name: std::sync::Arc<#resolved_ty> }
              }
         } else {
             if is_array {
+                if let Type::Slice(_) = f_ty {
+                     proc_macro_error::abort!(f_name, "Value fields must use explicit length syntax `[N]`. Implicit length `[]` is not allowed.");
+                }
                 quote! { #f_vis #f_name: std::sync::Arc<[frand_property::Property<#resolved_ty>]> }
             } else {
                 quote! { #f_vis #f_name: frand_property::Property<#resolved_ty> }
@@ -262,6 +274,8 @@ fn generate_init_fields(input: &Model) -> Vec<TokenStream> {
         
         let (is_array, elem_ty, array_len) = if let Type::Array(arr) = f_ty {
              (true, arr.elem.as_ref(), Some(&arr.len))
+        } else if let Type::Slice(slice) = f_ty {
+             (true, slice.elem.as_ref(), None)
         } else {
              (false, f_ty, None)
         };
@@ -270,14 +284,19 @@ fn generate_init_fields(input: &Model) -> Vec<TokenStream> {
 
         if f.is_model {
              if is_array {
-                let len = array_len.unwrap();
-                quote! {
-                    #f_name: {
-                        let mut models = std::vec::Vec::with_capacity(#len);
-                        for _ in 0..#len {
-                            models.push((*#resolved_ty::clone_singleton()).clone());
+                if let Some(len) = array_len {
+                    quote! {
+                        #f_name: {
+                            let mut models = std::vec::Vec::with_capacity(#len);
+                            for _ in 0..#len {
+                                models.push((*#resolved_ty::clone_singleton()).clone());
+                            }
+                            models.into()
                         }
-                        models.into()
+                    }
+                } else {
+                    quote! {
+                        #f_name: #resolved_ty::clone_singleton()
                     }
                 }
              } else {

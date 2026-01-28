@@ -103,8 +103,12 @@ impl Parse for SlintModelField {
         if input.peek(token::Bracket) {
             let content;
             syn::bracketed!(content in input);
-            let len_tokens = parse_len_expr(&content)?;
-            ty = syn::parse_quote!([#ty; #len_tokens]);
+            if content.is_empty() {
+                ty = syn::parse_quote!([#ty]);
+            } else {
+                let len_tokens = parse_len_expr(&content)?;
+                ty = syn::parse_quote!([#ty; #len_tokens]);
+            }
         }
 
         Ok(SlintModelField {

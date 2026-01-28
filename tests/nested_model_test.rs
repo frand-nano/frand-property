@@ -8,9 +8,15 @@ model! {
 }
 
 model! {
+    pub InnerModel1Arr[2] {
+        pub x: i32,
+    }
+}
+
+model! {
     pub OuterModel1 {
         pub model inner: InnerModel1,
-        pub model inner_arr: InnerModel1[2],
+        pub model inner_arr: InnerModel1Arr[],
     }
 }
 
@@ -46,9 +52,15 @@ model! {
 }
 
 model! {
+    pub InnerModel2Arr[2] {
+        pub x: i32,
+    }
+}
+
+model! {
     pub OuterModel2 {
         pub model inner: InnerModel2,
-        pub model inner_arr: InnerModel2[2],
+        pub model inner_arr: InnerModel2Arr[],
     }
 }
 
@@ -74,9 +86,15 @@ model! {
 }
 
 model! {
+    pub InnerModel3Arr[2] {
+        pub x: i32,
+    }
+}
+
+model! {
     pub OuterModel3 {
         pub model inner: InnerModel3,
-        pub model inner_arr: InnerModel3[2],
+        pub model inner_arr: InnerModel3Arr[],
     }
 }
 
@@ -91,4 +109,29 @@ fn test_nested_model_clone_receiver() {
     
     outer.inner_arr[1].x.sender().send(456);
     assert_eq!(outer_receiver.inner_arr[1].x.value(), 456);
+}
+
+// Test 4: Implicit Array Length Syntax
+model! {
+    pub InnerModel4[5] {
+        pub x: i32,
+    }
+}
+
+model! {
+    pub OuterModel4 {
+        pub model inner_arr: InnerModel4[],
+    }
+}
+
+#[test]
+fn test_implicit_array_syntax() {
+    let outer = OuterModel4::clone_singleton();
+    
+    // Check length
+    assert_eq!(outer.inner_arr.len(), 5);
+    
+    // Check functionality
+    outer.inner_arr[0].x.sender().send(99);
+    assert_eq!(outer.inner_arr[0].x.receiver().value(), 99);
 }

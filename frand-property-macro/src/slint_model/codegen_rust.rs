@@ -104,6 +104,8 @@ fn generate_field_defs(input: &SlintModel) -> Vec<TokenStream> {
 
         let (is_array, elem_ty) = if let Type::Array(arr) = f_ty {
             (true, arr.elem.as_ref())
+        } else if let Type::Slice(slice) = f_ty {
+            (true, slice.elem.as_ref())
         } else {
             (false, f_ty)
         };
@@ -386,6 +388,8 @@ fn process_data_field(
 
     let (is_array, elem_ty, array_len) = if let Type::Array(arr) = f_ty {
          (true, arr.elem.as_ref(), Some(&arr.len))
+    } else if let Type::Slice(slice) = f_ty {
+         (true, slice.elem.as_ref(), None)
     } else {
          (false, f_ty, None)
     };
@@ -393,29 +397,34 @@ fn process_data_field(
     let resolved_elem_ty = resolve_type(elem_ty);
 
     if is_array {
-        let len = array_len.unwrap();
-        let f_senders = format_ident!("{}_senders", f_name);
-
         if f.direction == Direction::In {
             // 배열 IN: 각 요소에 대해 Property 생성
+            let len = array_len.expect("Array length required for 'in' property fields");
             let (setup, init) = generate_in_array_setup(f_name, len, &resolved_elem_ty);
             (setup, quote! { #f_name }, init)
         } else if f.direction == Direction::Model {
+             // 모델은 반드시 [] (Type::Slice) 여야 함. Type::Array(길이 명시)는 허용하지 않음.
+             if let Some(_len) = array_len {
+                 proc_macro_error::abort!(f_name, "Model fields must use implicit length syntax `[]`. Explicit length `[N]` is not allowed for models.");
+             }
+             
              let loop_body = quote! {
-                 let #f_name = {
-                     let mut list = std::vec::Vec::with_capacity(#len);
-                     for _ in 0..#len {
-                         list.push((*#resolved_elem_ty::clone_singleton()).clone());
-                     }
-                     list.into()
-                 };
+                 let #f_name = #resolved_elem_ty::clone_singleton();
              };
              (loop_body, quote! { #f_name }, quote!{})
         } else {
-            let vec_init = generate_vec_init_tokens(len, &resolved_elem_ty);
-            let loop_body = quote! {
-                let mut #f_senders = Vec::with_capacity(#len);
-                for j in 0..#len {
+             // Out: 반드시 [N] (Type::Array) 여야 함. Type::Slice(길이 생략)는 허용하지 않음.
+             // array_len이 None이면 Type::Slice라는 의미
+             if array_len.is_none() {
+                 proc_macro_error::abort!(f_name, "Value fields (in/out) must use explicit length syntax `[N]`. Implicit length `[]` is not allowed.");
+             }
+
+             let len = array_len.expect("Array length required for 'out' property fields");
+             let f_senders = format_ident!("{}_senders", f_name);
+             let vec_init = generate_vec_init_tokens(len, &resolved_elem_ty);
+             let loop_body = quote! {
+                 let mut #f_senders = Vec::with_capacity(#len);
+                 for j in 0..#len {
                     let prop = frand_property::Property::<#resolved_elem_ty, slint::Weak<C>>::new(
                          weak.clone(),
                          <#resolved_elem_ty as Default>::default(),
