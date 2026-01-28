@@ -25,7 +25,7 @@ pub fn slint_model(input: TokenStream) -> TokenStream {
 #[proc_macro]
 #[proc_macro_error]
 pub fn model(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as model::parser::Model);
+    let input = parse_macro_input!(input as frand_property_build::parser::Model);
     let expanded = model::codegen_rust::generate(&input);
     TokenStream::from(expanded)
 }

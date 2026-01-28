@@ -28,6 +28,94 @@ pub enum Direction {
     Model,
 }
 
+// Model 구조체 정의
+pub struct Model {
+    pub vis: Visibility,
+    pub model_name: Ident,
+    pub len: Option<proc_macro2::TokenStream>,
+
+    pub _brace_token: token::Brace,
+    pub fields: Punctuated<ModelField, Token![,]>,
+}
+
+// Model 필드 정의
+pub struct ModelField {
+    pub vis: Visibility,
+    pub is_model: bool,
+    pub name: Ident,
+    pub _colon_token: Token![:],
+    pub ty: Type,
+}
+
+impl Parse for Model {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let vis: Visibility = input.parse()?;
+        
+        let model_name: Ident = input.parse()?;
+        
+        let len = if input.peek(token::Bracket) {
+            let content;
+            syn::bracketed!(content in input);
+            Some(parse_len_expr(&content)?)
+        } else {
+            None
+        };
+
+        let content;
+        Ok(Model {
+            vis,
+            model_name,
+            len,
+
+            _brace_token: syn::braced!(content in input),
+            fields: content.parse_terminated(ModelField::parse, Token![,])?,
+        })
+    }
+}
+
+impl Parse for ModelField {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let vis: Visibility = input.parse()?;
+        
+        // check for 'model' keyword
+        let is_model = if input.peek(Ident) {
+            let fork = input.fork();
+            let ident: Ident = fork.parse()?;
+            if ident == "model" {
+                input.parse::<Ident>()?;
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        let name = input.parse()?;
+        let _colon_token = input.parse()?;
+        let mut ty: Type = input.parse()?;
+        
+        if input.peek(token::Bracket) {
+            let content;
+            syn::bracketed!(content in input);
+            if content.is_empty() {
+                ty = syn::parse_quote!([#ty]);
+            } else {
+                let len_tokens = parse_len_expr(&content)?;
+                ty = syn::parse_quote!([#ty; #len_tokens]);
+            }
+        }
+
+        Ok(ModelField {
+            vis,
+            is_model,
+            name,
+            _colon_token,
+            ty,
+        })
+    }
+}
+
 pub struct SlintModel {
     pub vis: Visibility,
     pub model_name: Ident,
@@ -50,6 +138,7 @@ pub struct SlintModelField {
 impl Parse for SlintModel {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let vis: Visibility = input.parse()?;
+        
         let model_name: Ident = input.parse()?;
         
         let len = if input.peek(token::Bracket) {

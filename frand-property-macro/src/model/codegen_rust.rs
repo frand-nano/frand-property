@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::{quote, format_ident};
 use syn::Type;
-use super::parser::Model;
+use frand_property_build::parser::Model;
 use crate::common::resolve_type;
 
 pub fn generate(input: &Model) -> TokenStream {

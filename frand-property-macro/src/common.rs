@@ -1,7 +1,6 @@
 use proc_macro2::{TokenStream};
 use quote::quote;
-use syn::parse::ParseStream;
-use syn::{Ident, Token, Type};
+use syn::{Type};
 
 pub fn resolve_type(ty: &Type) -> TokenStream {
     if let Type::Path(tp) = ty {
@@ -40,23 +39,6 @@ pub fn is_unit_ty(ty: &Type) -> bool {
         t.elems.is_empty()
     } else {
         false
-    }
-}
-
-pub fn parse_len_expr(input: ParseStream) -> syn::Result<TokenStream> {
-    use quote::quote;
-    if input.peek(syn::Lit) {
-        let lit: syn::Lit = input.parse()?;
-        Ok(quote! { #lit })
-    } else if input.peek(Token![*]) {
-        input.parse::<Token![*]>()?;
-        let ident: Ident = input.parse()?;
-        Ok(quote! { *#ident })
-    } else if input.peek(Ident) {
-        let ident: Ident = input.parse()?;
-        Ok(quote! { #ident })
-    } else {
-        Err(input.error("Expected literal, identifier, or *identifier inside brackets"))
     }
 }
 
