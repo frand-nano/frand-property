@@ -49,7 +49,7 @@ slint_model! {
 
 `model!`은 Slint와 독립적으로 순수 Rust 데이터 모델을 생성할 때 사용합니다. `slint_model!`과 동일한 구조를 가지며, `Property`, `Sender`, `Receiver`를 사용하여 반응형 데이터 흐름을 구현합니다.
 
-**싱글톤 지원**: `slint_model!`과 마찬가지로 `clone_singleton()` 메소드를 통해 프로세스 내에서 유일한 인스턴스(또는 인스턴스 배열)를 공유할 수 있습니다.
+**싱글톤 지원**: `slint_model!`과 마찬가지로 `clone_singleton()` 메소드를 통해 프로세스 내에서 유일한 인스턴스를 공유할 수 있습니다. 스칼라 모델의 경우 `Arc<Self>`를, 배열 모델의 경우 `Arc<[Self]>`를 반환합니다.
 
 ```rust
 use frand_property::model;

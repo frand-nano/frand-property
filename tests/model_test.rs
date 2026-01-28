@@ -6,7 +6,7 @@ use tokio::time::sleep;
 
 // 1. 기본 모델 정의 테스트
 model! {
-    pub BasicModel {
+    pub BasicModel1 {
         pub count: i32,
         pub name: ArrayString<U20>,
     }
@@ -14,7 +14,7 @@ model! {
 
 #[tokio::test]
 async fn test_basic_model() {
-    let model = BasicModel::new();
+    let model = BasicModel1::clone_singleton();
     
     // 초기값 확인 (Default)
     assert_eq!(model.count.receiver().value(), 0);
@@ -29,9 +29,15 @@ async fn test_basic_model() {
     assert_eq!(model.name.receiver().value().as_str(), "Hello");
 }
 
+model! {
+    pub AsyncModel {
+        pub count: i32,
+    }
+}
+
 #[tokio::test]
 async fn test_async_notification() {
-    let model = BasicModel::new();
+    let model = AsyncModel::clone_singleton();
     let mut receiver = model.count.receiver().clone();
 
     // 별도 태스크에서 값 변경
@@ -54,7 +60,7 @@ model! {
 
 #[test]
 fn test_array_field() {
-    let model = ArrayFieldModel::new();
+    let model = ArrayFieldModel::clone_singleton();
     
     assert_eq!(model.scores.len(), 5);
     
@@ -77,7 +83,7 @@ model! {
 
 #[test]
 fn test_model_vec() {
-    let models = ItemModel::new(); // Arc<[ItemModel]> 반환
+    let models = ItemModel::clone_singleton(); // Arc<[ItemModel]> 반환
     
     assert_eq!(models.len(), 3);
     
@@ -99,7 +105,7 @@ model! {
 
 #[test]
 fn test_visibility_compile() {
-    let model = VisibilityTestModel::new();
+    let model = VisibilityTestModel::clone_singleton();
     model.public_val.sender().send(1);
     model.private_val.sender().send(2); // 같은 모듈 내라서 접근 가능
 }
@@ -107,7 +113,7 @@ fn test_visibility_compile() {
 // 5. ModelSender/ModelReceiver 테스트
 #[tokio::test]
 async fn test_model_sender_receiver() {
-    let model = BasicModel::new();
+    let model = BasicModel1::clone_singleton();
     
     let sender = model.clone_sender();
     let receiver = model.clone_receiver();
@@ -125,7 +131,7 @@ async fn test_model_sender_receiver() {
 // 6. Array ModelSender/ModelReceiver 테스트
 #[tokio::test]
 async fn test_vec_model_sender_receiver() {
-    let model = ArrayFieldModel::new();
+    let model = ArrayFieldModel::clone_singleton();
     
     let sender = model.clone_sender();
     let receiver = model.clone_receiver();
@@ -136,6 +142,12 @@ async fn test_vec_model_sender_receiver() {
 }
 
 // 7. Blanket Extension Trait Method 테스트
+model! {
+    pub ExtensionModel {
+        pub count: i32,
+    }
+}
+
 #[tokio::test]
 async fn test_model_extension_methods() {
     use frand_property::ModelList; // Trait import
@@ -143,7 +155,7 @@ async fn test_model_extension_methods() {
     let models = {
         let mut v = Vec::with_capacity(5);
         for _ in 0..5 {
-            v.push(BasicModel::new());
+            v.push(ExtensionModel::clone_singleton());
         }
         v
     };
@@ -162,28 +174,29 @@ async fn test_model_extension_methods() {
 }
 
 // 8. Iterator Bind 테스트
+const BIND_COUNT: usize = 5;
+model! {
+    pub BindSourceArrayModel[BIND_COUNT] {
+        pub count: i32,
+    }
+}
+
+model! {
+    pub BindTargetArrayModel[BIND_COUNT] {
+        pub count: i32,
+    }
+}
+
 #[tokio::test]
 async fn test_iterator_bind() {
     use frand_property::PropertyIteratorExt;
     use frand_property::ModelList;
     
-    // Source: 값을 변경할 모델들
-    let source_models = {
-        let mut v = Vec::with_capacity(5);
-        for _ in 0..5 {
-            v.push(BasicModel::new());
-        }
-        v
-    };
+    // Source: 값을 변경할 모델들 (Array Model)
+    let source_models = BindSourceArrayModel::clone_singleton();
     
-    // Target: 값이 전달될 타겟 모델들
-    let target_models = {
-        let mut v = Vec::with_capacity(5);
-        for _ in 0..5 {
-            v.push(BasicModel::new());
-        }
-        v
-    };
+    // Target: 값이 전달될 타겟 모델들 (Array Model)
+    let target_models = BindTargetArrayModel::clone_singleton();
     let target_senders = target_models.clone_senders();
     
     // Source의 receiver들을 Target의 sender들에 바인딩
@@ -240,7 +253,7 @@ model! {
 
 #[test]
 fn test_lazy_lock_len() {
-    let models = LazyModel::new();
+    let models = LazyModel::clone_singleton();
     assert_eq!(models.len(), *LAZY_LEN);
     assert_eq!(models.len(), 4);
 }

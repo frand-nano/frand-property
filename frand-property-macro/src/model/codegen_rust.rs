@@ -39,13 +39,13 @@ pub fn generate(input: &Model) -> TokenStream {
         )
     } else {
         (
-            quote! { Self },
-            quote! { #model_name },
+            quote! { std::sync::Arc<Self> },
+            quote! { std::sync::Arc<#model_name> },
             quote! {
                 let weak = ();
-                Self {
+                std::sync::Arc::new(Self {
                     #init_logic
-                }
+                })
             }
         )
     };
@@ -69,13 +69,9 @@ pub fn generate(input: &Model) -> TokenStream {
         }
 
         impl #model_name {
-            pub fn new() -> #new_ret_ty {
-                #new_body
-            }
-
             pub fn clone_singleton() -> #new_ret_ty {
                 #instance_ident.get_or_init(|| {
-                    Self::new()
+                    #new_body
                 }).clone()
             }
             
@@ -247,7 +243,7 @@ fn generate_field_defs(input: &Model) -> Vec<TokenStream> {
              if is_array {
                 quote! { #f_vis #f_name: std::sync::Arc<[#resolved_ty]> }
              } else {
-                 quote! { #f_vis #f_name: #resolved_ty }
+                 quote! { #f_vis #f_name: std::sync::Arc<#resolved_ty> }
              }
         } else {
             if is_array {
@@ -279,14 +275,14 @@ fn generate_init_fields(input: &Model) -> Vec<TokenStream> {
                     #f_name: {
                         let mut models = std::vec::Vec::with_capacity(#len);
                         for _ in 0..#len {
-                            models.push(#resolved_ty::new());
+                            models.push((*#resolved_ty::clone_singleton()).clone());
                         }
                         models.into()
                     }
                 }
              } else {
                  quote! {
-                     #f_name: #resolved_ty::new()
+                     #f_name: #resolved_ty::clone_singleton()
                  }
              }
         } else {

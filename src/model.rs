@@ -26,3 +26,16 @@ impl<T: Model> ModelList for [T] {
         self.iter().map(|m| m.clone_receiver()).collect()
     }
 }
+
+impl<T: Model> Model for std::sync::Arc<T> {
+    type Sender = T::Sender;
+    type Receiver = T::Receiver;
+
+    fn clone_sender(&self) -> Self::Sender {
+        (**self).clone_sender()
+    }
+
+    fn clone_receiver(&self) -> Self::Receiver {
+        (**self).clone_receiver()
+    }
+}

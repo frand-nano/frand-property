@@ -1,21 +1,22 @@
 use frand_property_macro::model;
 
+// Test 1: Instantiation
 model! {
-    pub InnerModel {
+    pub InnerModel1 {
         pub x: i32,
     }
 }
 
 model! {
-    pub OuterModel {
-        pub model inner: InnerModel,
-        pub model inner_arr: InnerModel[2],
+    pub OuterModel1 {
+        pub model inner: InnerModel1,
+        pub model inner_arr: InnerModel1[2],
     }
 }
 
 #[test]
 fn test_nested_model_instantiation() {
-    let outer = OuterModel::new();
+    let outer = OuterModel1::clone_singleton();
     
     // 내부 모델 존재 여부 확인
     let inner_sender = outer.inner.x.sender();
@@ -37,9 +38,23 @@ fn test_nested_model_instantiation() {
     assert_eq!(outer.inner_arr[1].x.receiver().value(), 30);
 }
 
+// Test 2: Clone Sender
+model! {
+    pub InnerModel2 {
+        pub x: i32,
+    }
+}
+
+model! {
+    pub OuterModel2 {
+        pub model inner: InnerModel2,
+        pub model inner_arr: InnerModel2[2],
+    }
+}
+
 #[test]
 fn test_nested_model_clone_sender() {
-    let outer = OuterModel::new();
+    let outer = OuterModel2::clone_singleton();
     let outer_sender = outer.clone_sender();
     
     // 복제된 외부 센더를 통해 중첩된 센더에 접근
@@ -51,9 +66,23 @@ fn test_nested_model_clone_sender() {
     assert_eq!(outer.inner_arr[0].x.receiver().value(), 100);
 }
 
+// Test 3: Clone Receiver
+model! {
+    pub InnerModel3 {
+        pub x: i32,
+    }
+}
+
+model! {
+    pub OuterModel3 {
+        pub model inner: InnerModel3,
+        pub model inner_arr: InnerModel3[2],
+    }
+}
+
 #[test]
 fn test_nested_model_clone_receiver() {
-    let outer = OuterModel::new();
+    let outer = OuterModel3::clone_singleton();
     outer.inner.x.sender().send(123);
     
     let outer_receiver = outer.clone_receiver();

@@ -23,9 +23,9 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
     } else {
         (
             quote! { 1 },
-            quote! { Self },
-            quote! { Self },
-            quote! { rust_models.pop().expect("Should have created at least one model") },
+            quote! { std::sync::Arc<Self> },
+            quote! { std::sync::Arc<Self> },
+            quote! { std::sync::Arc::new(rust_models.pop().expect("Should have created at least one model")) },
         )
     };
     
@@ -114,7 +114,7 @@ fn generate_field_defs(input: &SlintModel) -> Vec<TokenStream> {
              if is_array {
                  quote! { #f_vis #f_name: std::sync::Arc<[#resolved_ty]> }
              } else {
-                 quote! { #f_vis #f_name: #resolved_ty }
+                 quote! { #f_vis #f_name: std::sync::Arc<#resolved_ty> }
              }
         } else if is_array {
             let resolved_elem_ty = resolve_type(elem_ty);
@@ -405,7 +405,7 @@ fn process_data_field(
                  let #f_name = {
                      let mut list = std::vec::Vec::with_capacity(#len);
                      for _ in 0..#len {
-                         list.push(#resolved_elem_ty::new());
+                         list.push((*#resolved_elem_ty::clone_singleton()).clone());
                      }
                      list.into()
                  };
@@ -451,7 +451,7 @@ fn process_data_field(
             (loop_body, quote! { #f_name }, quote!{})
         } else if f.direction == Direction::Model {
              let loop_body = quote! {
-                 let #f_name = #resolved_elem_ty::new();
+                 let #f_name = #resolved_elem_ty::clone_singleton();
              };
              (loop_body, quote! { #f_name }, quote!{})
         } else {
