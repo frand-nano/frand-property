@@ -20,7 +20,7 @@ impl RepeaterModel<MainWindow> {
                 let val = text.modified().await;
                 
                 let s = format!("{} {}", val, val);
-                
+
                 if let Ok(res) = ArrayString::<U41>::try_from_str(&s) {
                     repeated.send(res);
                 }

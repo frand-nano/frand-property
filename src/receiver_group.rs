@@ -5,7 +5,7 @@ use crate::{Receiver, Sender};
 
 #[async_trait]
 pub trait ReceiverGroup: Clone + Send + 'static {
-    type Item: Copy + Send + Sync + 'static;
+    type Item: Clone + Send + Sync + 'static;
 
     fn value(&self) -> Self::Item;
 
@@ -30,7 +30,7 @@ pub trait ReceiverGroup: Clone + Send + 'static {
 }
 
 #[async_trait]
-impl<T: Copy + Send + Sync + 'static> ReceiverGroup for Receiver<T> {
+impl<T: Clone + Send + Sync + 'static> ReceiverGroup for Receiver<T> {
     type Item = T;
 
     fn value(&self) -> Self::Item {

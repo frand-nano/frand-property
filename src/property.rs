@@ -14,13 +14,13 @@ pub struct Property<T, C = ()> {
     receiver: Receiver<T>,
 }
 
-impl<T: Copy + Send + Sync> From<T> for Property<T> {
+impl<T: Clone + Send + Sync> From<T> for Property<T> {
     fn from(value: T) -> Self {
         Self::new((), value, |_, _| {})
     }
 }
 
-impl<T: Default + Copy + Send + Sync> Default for Property<T> {
+impl<T: Default + Clone + Send + Sync> Default for Property<T> {
     fn default() -> Self {
         Self::from(T::default())
     }
@@ -69,7 +69,7 @@ impl<T, C> Property<T, C> {
         component: C,
         initial_value: T,
         set: impl Fn(&C, T) + 'static + Send + Sync,
-    ) -> Self where T: Copy + Send + Sync {
+    ) -> Self where T: Clone + Send + Sync {
         let channel = watch::channel(initial_value);
 
         Self {
@@ -88,8 +88,12 @@ impl<T, C> Property<T, C> {
 }
 
 impl<T> Receiver<T> {
-    pub fn value(&self) -> T where T: Copy {
-        *self.receiver.borrow()
+    pub fn value(&self) -> T where T: Clone {
+        self.receiver.borrow().clone()
+    }
+
+    pub fn borrow(&self) -> watch::Ref<'_, T> {
+        self.receiver.borrow()
     }
 
     pub fn has_notified(&self) -> bool {
@@ -126,18 +130,18 @@ impl<T> Receiver<T> {
         result
     }
 
-    pub async fn modified(&mut self) -> T where T: Copy + PartialEq {
+    pub async fn modified(&mut self) -> T where T: Clone + PartialEq {
         let last_value = self.value();
 
-        *self.receiver
+        self.receiver
             .wait_for(|value| *value != last_value).await
             .unwrap_or_else(|_|
                 // self 가 sender 와 receiver 를 모두 소유하기 때문에 sender 는 언제나 존재합니다.
                 unreachable!("Sender is already dropped.")
-            )
+            ).clone()
     }
 
-    pub async fn notified(&mut self) -> T where T: Copy {
+    pub async fn notified(&mut self) -> T where T: Clone {
         self.receiver
             .changed().await
             .unwrap_or_else(|_|
@@ -166,14 +170,14 @@ impl<T> Receiver<T> {
 
     pub fn spawn_bind<C>(&self, sender: Sender<T, C>) -> JoinHandle<()>
     where
-        T: Copy + PartialEq + Send + Sync + 'static,
+        T: Clone + PartialEq + Send + Sync + 'static,
         C: Send + Sync + Clone + 'static,
     {
         self.stream().spawn_bind(sender)
     }
     
     pub fn from_spawn_bind<G: ReceiverGroup<Item = T>>(group: G) -> Self 
-    where T: Default + Copy + PartialEq + Send + Sync + 'static {
+    where T: Default + Clone + PartialEq + Send + Sync + 'static {
         let property = Property::<T>::default();
 
         group.spawn_bind(property.sender);
@@ -183,12 +187,12 @@ impl<T> Receiver<T> {
 }
 
 impl<T, C> Sender<T, C> {
-    pub fn send(&self, value: T) where T: Copy + PartialEq {
-        let current_value = *self.receiver.borrow();
+    pub fn send(&self, value: T) where T: Clone + PartialEq {
+        let current_value = self.receiver.borrow().clone();
 
         if value == current_value { return; }
 
-        (self.set)(&self.component, value);
+        (self.set)(&self.component, value.clone());
 
         self.sender.send(value)
             .unwrap_or_else(|_|
@@ -197,20 +201,23 @@ impl<T, C> Sender<T, C> {
             );
     }
 
-    pub fn notify(&self) where T: Copy {
-        let value = *self.receiver.borrow();
+    pub fn notify(&self) where T: Clone {
+        let value = self.receiver.borrow().clone();
 
         self.notify_with(value);
     }
 
-    pub fn notify_with(&self, value: T) where T: Copy {
-        (self.set)(&self.component, value);
+    pub fn notify_with(&self, value: T) where T: Clone {
+        (self.set)(&self.component, value.clone());
 
         self.sender.send(value)
             .unwrap_or_else(|_|
                 // self 가 sender 와 receiver 를 모두 소유하기 때문에 receiver 는 언제나 존재합니다.
                 unreachable!("Receiver is already dropped.")
             );
+    }
+    pub fn borrow(&self) -> watch::Ref<'_, T> {
+        self.receiver.borrow()
     }
 }
 

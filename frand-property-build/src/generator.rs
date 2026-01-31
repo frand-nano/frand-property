@@ -173,6 +173,7 @@ fn rust_type_to_slint_type(ty: &Type) -> String {
         "char" => "string".to_string(),
         // 문자열
         s if (s.starts_with("ArrayString<") || s.starts_with("ArrayString::<")) && s.ends_with(">") => "string".to_string(),
+        "String" => "string".to_string(),
         // 유닛 타입
         "()" => "void".to_string(),
         // 기본 폴백

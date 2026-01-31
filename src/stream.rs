@@ -25,7 +25,7 @@ pub trait PropertyStreamExt: Stream {
     where
         Self: Sized + Stream<Item = T> + Unpin + Send + 'static,
         Self::Item: Send,
-        T: Copy + PartialEq + Send + Sync + 'static,
+        T: Clone + PartialEq + Send + Sync + 'static,
         C: Send + Sync + Clone + 'static,
     {
         self.drive(move |value| {
@@ -49,7 +49,7 @@ pub trait PropertyStreamExt: Stream {
     fn spawn_bind<T, C>(self, sender: Sender<T, C>) -> JoinHandle<()>
     where
         Self: Sized + Stream<Item = T> + Unpin + Send + 'static,
-        T: Copy + PartialEq + Send + Sync + 'static,
+        T: Clone + PartialEq + Send + Sync + 'static,
         C: Send + Sync + Clone + 'static,
     {
         tokio::spawn(self.bind(sender))
@@ -63,7 +63,7 @@ pub trait PropertyIteratorExt: Iterator {
     where
         Self: Sized,
         Self::Item: Borrow<Receiver<T>>,
-        T: Copy + PartialEq + Send + Sync + 'static,
+        T: Clone + PartialEq + Send + Sync + 'static,
         C: Send + Sync + Clone + 'static,
     {
         self.zip(senders)

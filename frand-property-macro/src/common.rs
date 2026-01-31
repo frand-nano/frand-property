@@ -25,13 +25,26 @@ pub fn resolve_type(ty: &Type) -> TokenStream {
     quote! { #ty }
 }
 
-pub fn is_special_string_type(ty: &Type) -> bool {
+pub fn is_array_string_type(ty: &Type) -> bool {
     if let Type::Path(tp) = ty {
         if let Some(seg) = tp.path.segments.last() {
             return seg.ident == "ArrayString";
         }
     }
     false
+}
+
+pub fn is_std_string_type(ty: &Type) -> bool {
+    if let Type::Path(tp) = ty {
+        if let Some(seg) = tp.path.segments.last() {
+            return seg.ident == "String";
+        }
+    }
+    false
+}
+
+pub fn is_special_string_type(ty: &Type) -> bool {
+    is_array_string_type(ty) || is_std_string_type(ty)
 }
 
 pub fn is_unit_ty(ty: &Type) -> bool {

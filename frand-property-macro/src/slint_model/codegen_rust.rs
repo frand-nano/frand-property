@@ -119,11 +119,11 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
             }
 
             impl<C: slint::ComponentHandle + 'static> #model_name<C> {
-                pub fn new(component: &C) -> #ret_ty where for<'a> #global_type_name<'a>: slint::Global<'a, C> {
-                     use slint::ComponentHandle;
+                pub fn new() -> #ret_ty where C: frand_property::SlintSingleton, for<'a> #global_type_name<'a>: slint::Global<'a, C> {
                      use slint::Model as _;
                      
-                     let weak = component.as_weak();
+                     let weak = C::clone_singleton();
+                     let component = weak.upgrade().expect("Failed to upgrade singleton instance");
 
                      let mut rust_models = {
                          #body_logic_array
@@ -239,14 +239,21 @@ fn generate_logic_impl(
                 #vec_name.push(#f_prop.sender().clone());
             });
             
-            if is_special_string_type(&f.ty) {
-                // 변경 사항 확인 시, 변환된 값을 전송해야 합니다.
+            if crate::common::is_array_string_type(&f.ty) {
                 scalar_diff_checks.push(quote! {
                     if new_data.#f_name != old_data.#f_name {
                         if let Some(sender) = #vec_name.get(idx) {
                              if let Ok(val) = frand_property::arraystring::ArrayString::try_from_str(new_data.#f_name.as_str()) {
                                  sender.send(val);
                              }
+                        }
+                    }
+                });
+            } else if crate::common::is_std_string_type(&f.ty) {
+                 scalar_diff_checks.push(quote! {
+                    if new_data.#f_name != old_data.#f_name {
+                        if let Some(sender) = #vec_name.get(idx) {
+                             sender.send(new_data.#f_name.to_string());
                         }
                     }
                 });
