@@ -13,7 +13,7 @@ pub fn resolve_type(ty: &Type) -> TokenStream {
                              if ident_str.starts_with('U') {
                                  if ident_str[1..].parse::<u32>().is_ok() {
                                      let n = &inner_seg.ident;
-                                     return quote! { frand_property::arraystring::ArrayString<frand_property::arraystring::typenum::#n> };
+                                     return quote! { ArrayString<#n> };
                                  }
                              }
                          }

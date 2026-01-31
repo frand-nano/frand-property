@@ -1,5 +1,5 @@
 use std::future::Future;
-use frand_property::SlintSingleton;
+use frand_property::slint::SlintSingleton;
 use crate::adder::AdderModel;
 use crate::adders::AddersModel;
 use crate::screen::ScreenModel;

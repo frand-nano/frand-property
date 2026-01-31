@@ -70,7 +70,7 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
             }
 
             impl<C: slint::ComponentHandle + 'static> #model_name<C> {
-                pub fn clone_singleton() -> #ret_ty where C: frand_property::SlintSingleton, for<'a> #global_type_name<'a>: slint::Global<'a, C> {
+                pub fn clone_singleton() -> #ret_ty where C: frand_property::slint::SlintSingleton, for<'a> #global_type_name<'a>: slint::Global<'a, C> {
                      let map = #instances_ident.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
                      let mut map = map.lock().unwrap();
                      let type_id = std::any::TypeId::of::<C>();
@@ -119,7 +119,7 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
             }
 
             impl<C: slint::ComponentHandle + 'static> #model_name<C> {
-                pub fn new() -> #ret_ty where C: frand_property::SlintSingleton, for<'a> #global_type_name<'a>: slint::Global<'a, C> {
+                pub fn new() -> #ret_ty where C: frand_property::slint::SlintSingleton, for<'a> #global_type_name<'a>: slint::Global<'a, C> {
                      use slint::Model as _;
                      
                      let weak = C::clone_singleton();
@@ -243,7 +243,7 @@ fn generate_logic_impl(
                 scalar_diff_checks.push(quote! {
                     if new_data.#f_name != old_data.#f_name {
                         if let Some(sender) = #vec_name.get(idx) {
-                             if let Ok(val) = frand_property::arraystring::ArrayString::try_from_str(new_data.#f_name.as_str()) {
+                             if let Ok(val) = ArrayString::try_from_str(new_data.#f_name.as_str()) {
                                  sender.send(val);
                              }
                         }
@@ -314,7 +314,7 @@ fn generate_logic_impl(
         
         #(#scalar_vectors_clone)*
         
-        let notify_model = frand_property::SlintNotifyModel::new(inner_model, move |idx, new_data| {
+        let notify_model = frand_property::slint::SlintNotifyModel::new(inner_model, move |idx, new_data| {
              let mut old_data_guard = old_data_vec_clone.borrow_mut();
              if idx < old_data_guard.len() {
                  let old_data = &mut old_data_guard[idx];
@@ -373,7 +373,7 @@ fn generate_in_array_setup(
         ));
         let senders_clone = #f_senders.clone();
         
-        let notify_model = frand_property::SlintNotifyModel::new(inner_vec_model, move |idx, val| {
+        let notify_model = frand_property::slint::SlintNotifyModel::new(inner_vec_model, move |idx, val| {
             if let Some(sender) = senders_clone.get(idx) {
                  sender.send(val);
             }

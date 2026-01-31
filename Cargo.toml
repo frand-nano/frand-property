@@ -1,6 +1,6 @@
 [workspace]
 members = ["frand-property-macro", "frand-property-slint", "frand-property-build"]
-package.version = "0.3.6"
+package.version = "0.3.7"
 package.edition = "2021"
 package.authors = ["frand-nano <frand.nano@gmail.com>"]
 
@@ -11,17 +11,19 @@ edition.workspace = true
 authors.workspace = true
 
 [features]
-default = [ "slint" ]
+default = [ ]
 slint = ["dep:slint"]
 slint-build = ["frand-property-macro/slint-build"]
 
 [dependencies]
 frand-property-macro = { path = "frand-property-macro" }
 
-slint = { version = "1.14", optional = true }
+slint = { version = "1.0", optional = true, default-features = false }
 
-arraystring = { version = "0.3", features = ["serde-traits"] }
 async-trait = "0.1"
+
+[dev-dependencies]
+arraystring = { version = "0.3" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "sync", "time"] }

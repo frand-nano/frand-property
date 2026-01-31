@@ -1,5 +1,5 @@
 use frand_property::{model, Property, ReceiverGroup};
-use frand_property::arraystring::{ArrayString, typenum::U20};
+use arraystring::{ArrayString, typenum::U20};
 use std::time::Duration;
 use tokio::time::sleep;
 

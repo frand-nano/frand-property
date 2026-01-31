@@ -1,7 +1,7 @@
-use frand_property::*;
+use frand_property::slint_model;
 use crate::{MainWindow, RepeaterGlobal};
 use arraystring::ArrayString;
-use arraystring::typenum::U41;
+use arraystring::typenum::{U20, U41};
 
 slint_model! {
     pub RepeaterModel: RepeaterGlobal {

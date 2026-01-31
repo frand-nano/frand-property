@@ -1,4 +1,4 @@
-use frand_property::*;
+use frand_property::slint_model;
 use crate::{MainWindow, ScreenGlobal};
 use crate::ScreenVariant;
 
