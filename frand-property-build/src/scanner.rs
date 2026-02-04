@@ -25,6 +25,17 @@ impl<'ast> Visit<'ast> for SlintModelVisitor {
 pub fn generate_slint_files(src_dir: impl AsRef<Path>, output_dir: impl AsRef<Path>) -> anyhow::Result<()> {
     let src_dir = src_dir.as_ref();
     let output_dir = output_dir.as_ref();
+    
+    if !output_dir.exists() {
+        fs::create_dir_all(output_dir)?;
+    }
+
+    let index_path = output_dir.join("index.slint");
+    if index_path.exists() {
+        fs::OpenOptions::new().append(true).open(&index_path)?;
+    } else {
+        fs::File::create(&index_path)?;
+    }
 
     for entry in WalkDir::new(src_dir) {
         let entry = entry?;

@@ -341,19 +341,19 @@ fn generate_init_fields(input: &Model) -> Vec<TokenStream> {
                         #f_name: {
                             let mut models = std::vec::Vec::with_capacity(#len);
                             for _ in 0..#len {
-                                models.push((*#resolved_ty::clone_singleton()).clone());
+                                models.push((*#resolved_ty::new()).clone());
                             }
                             models.into()
                         }
                     }
                 } else {
                     quote! {
-                        #f_name: #resolved_ty::clone_singleton()
+                        #f_name: #resolved_ty::new()
                     }
                 }
              } else {
                  quote! {
-                     #f_name: #resolved_ty::clone_singleton()
+                     #f_name: #resolved_ty::new()
                  }
              }
         } else {
