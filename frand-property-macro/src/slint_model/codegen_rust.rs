@@ -132,6 +132,12 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
                      let result: #ret_ty = #return_stmt;
                      result
                 }
+
+                pub fn init(init: impl FnOnce(&#ret_ty)) -> #ret_ty where C: frand_property::slint::SlintSingleton, for<'a> #global_type_name<'a>: slint::Global<'a, C> {
+                    let model = Self::new();
+                    init(&model);
+                    model
+                }
             }
         }
     }

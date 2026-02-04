@@ -125,6 +125,12 @@ pub fn generate(input: &Model) -> TokenStream {
                  pub fn new() -> #new_ret_ty {
                     #new_body
                 }
+
+                pub fn init(init: impl FnOnce(&#new_ret_ty)) -> #new_ret_ty {
+                    let model = Self::new();
+                    init(&model);
+                    model
+                }
                 
                 pub fn clone_sender(&self) -> #sender_name {
                     #sender_name {
