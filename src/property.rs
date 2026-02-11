@@ -187,6 +187,10 @@ impl<T> Receiver<T> {
 }
 
 impl<T, C> Sender<T, C> {
+    pub fn value(&self) -> T where T: Clone {
+        self.receiver.borrow().clone()
+    }
+
     pub fn send(&self, value: T) where T: Clone + PartialEq {
         let current_value = self.receiver.borrow().clone();
 

@@ -4,7 +4,7 @@ import { AddersGlobalComponent } from "../global/adders.slint";
 export component Adders inherits AddersGlobalComponent {
     VerticalBox {
         Text {
-            text: "AdderVec[" + root.global-index + "]";
+            text: "AdderVec[" + root.global-data-index + "]";
         }
 
         for value[i] in root.global-values: VerticalBox {

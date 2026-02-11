@@ -33,18 +33,18 @@ pub fn run() -> Result<(), slint::PlatformError> {
     let window = MainWindow::new()?;
     window.init_singleton();
 
-    let screen_model = ScreenModel::<MainWindow>::new();
+    let screen_model = ScreenModel::<MainWindow>::clone_singleton();
     screen_model.start();
 
-    let adder_model = AdderModel::<MainWindow>::new();
+    let adder_model = AdderModel::<MainWindow>::clone_singleton();
     adder_model.start();
 
-    let adder_vec_models = AddersModel::<MainWindow>::new();
+    let adder_vec_models = AddersModel::<MainWindow>::clone_singleton();
     for model in adder_vec_models.iter() {
         model.start();
     }
 
-    let repeater_model = repeater::RepeaterModel::<MainWindow>::new();
+    let repeater_model = repeater::RepeaterModel::<MainWindow>::clone_singleton();
     repeater_model.start();
 
     window.run()?;

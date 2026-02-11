@@ -14,10 +14,11 @@ export global ScreenGlobal {
 }
 
 export component ScreenGlobalComponent inherits Rectangle {
-    in-out property <int> global-index: 0;
-    out property <ScreenVariant> global-current-screen: ScreenGlobal.data[global-index].current-screen;
+    in-out property <int> global-data-length: ScreenGlobal.data.length;
+    in-out property <int> global-data-index: 0;
+    out property <ScreenVariant> global-current-screen: ScreenGlobal.data[global-data-index].current-screen;
     callback global-confirm-start;
-    global-confirm-start => { ScreenGlobal.confirm-start(global-index); }
+    global-confirm-start => { ScreenGlobal.confirm-start(global-data-index); }
     callback global-cancel-pay;
-    global-cancel-pay => { ScreenGlobal.cancel-pay(global-index); }
+    global-cancel-pay => { ScreenGlobal.cancel-pay(global-data-index); }
 }

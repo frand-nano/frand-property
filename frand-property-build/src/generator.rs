@@ -99,9 +99,12 @@ pub fn generate_code_components(input: &SlintModel) -> (String, String, String, 
     let mut global_fields = vec![global_data];
 
     let mut component_fields = Vec::new();
+
+    // 기본 길이 프로퍼티 추가
+    component_fields.push(format!("    in-out property <int> global-data-length: {global_name}.data.length;"));
     
     // 기본 인덱스 프로퍼티 추가
-    component_fields.push("    in-out property <int> global-index: 0;".to_string());
+    component_fields.push("    in-out property <int> global-data-index: 0;".to_string());
 
     for field in &input.fields {
         let kebab_name = field.name.to_string().replace("_", "-");
@@ -112,9 +115,9 @@ pub fn generate_code_components(input: &SlintModel) -> (String, String, String, 
              // Global: callback name(int); 
              global_fields.push(format!("    callback {kebab_name}(int);"));
              
-             // Component: callback name; name => { Global.name(global-index); }
+             // Component: callback name; name => { Global.name(global-data-index); }
              component_fields.push(format!("    callback global-{kebab_name};"));
-             component_fields.push(format!("    global-{kebab_name} => {{ {global_name}.{kebab_name}(global-index); }}"));
+             component_fields.push(format!("    global-{kebab_name} => {{ {global_name}.{kebab_name}(global-data-index); }}"));
         } else {
              struct_fields.push(
                 format!("    {kebab_name}: {slint_type},")
@@ -125,13 +128,13 @@ pub fn generate_code_components(input: &SlintModel) -> (String, String, String, 
                     // Rust -> Slint (Slint 로직에 의해 변경되어 Rust 가 읽음)
                     // "in x: i32" -> "property <int> global-x;"
                     
-                    component_fields.push(format!("    in-out property <{slint_type}> global-{kebab_name}: {global_name}.data[global-index].{kebab_name};"));
-                    component_fields.push(format!("    changed global-{kebab_name} => {{ {global_name}.data[global-index].{kebab_name} = self.global-{kebab_name}; }}"));
+                    component_fields.push(format!("    in-out property <{slint_type}> global-{kebab_name}: {global_name}.data[global-data-index].{kebab_name};"));
+                    component_fields.push(format!("    changed global-{kebab_name} => {{ {global_name}.data[global-data-index].{kebab_name} = self.global-{kebab_name}; }}"));
                 }
                 parser::Direction::Out => {
                     // Rust -> Slint (Rust 가 쓰고 Slint 가 읽음)
                     // "out sum: i32" -> "property <int> global-sum: Global.data[index].sum;"
-                    component_fields.push(format!("    out property <{slint_type}> global-{kebab_name}: {global_name}.data[global-index].{kebab_name};"));
+                    component_fields.push(format!("    out property <{slint_type}> global-{kebab_name}: {global_name}.data[global-data-index].{kebab_name};"));
                 }
                 parser::Direction::Model => {}
             }

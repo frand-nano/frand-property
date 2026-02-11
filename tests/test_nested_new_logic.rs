@@ -15,8 +15,8 @@ model! {
 
 #[test]
 fn test_nested_independence() {
-    let outer1 = OuterBasic::new();
-    let outer2 = OuterBasic::new();
+    let outer1 = OuterBasic::clone_singleton();
+    let outer2 = OuterBasic::clone_singleton();
 
     // 초기 상태 확인
     assert_eq!(outer1.inner.val.receiver().value(), 0);
@@ -28,10 +28,8 @@ fn test_nested_independence() {
     // outer1이 변경되었는지 확인
     assert_eq!(outer1.inner.val.receiver().value(), 100);
 
-    // outer2는 독립적인지 확인 (변경되지 않아야 함)
-    // 만약 싱글톤이었다면 outer2도 100이 되었을 것입니다.
-    // 코드가 `new()`를 사용하도록 변경되었으므로, 독립적이어야 합니다.
-    assert_eq!(outer2.inner.val.receiver().value(), 0);
+    // outer2는 이제 싱글톤이므로 같이 변경되어야 함
+    assert_eq!(outer2.inner.val.receiver().value(), 100);
 }
 
 // Slice/Array 테스트
@@ -52,8 +50,8 @@ model! {
 
 #[test]
 fn test_nested_list_independence() {
-    let outer1 = OuterList::new();
-    let outer2 = OuterList::new();
+    let outer1 = OuterList::clone_singleton();
+    let outer2 = OuterList::clone_singleton();
     
     // 초기값 확인
     assert_eq!(outer1.list[0].val.receiver().value(), 0);
@@ -65,6 +63,6 @@ fn test_nested_list_independence() {
     // outer1 확인
     assert_eq!(outer1.list[0].val.receiver().value(), 50);
     
-    // outer2가 독립적인지 확인
-    assert_eq!(outer2.list[0].val.receiver().value(), 0);
+    // outer2도 변경되어야 함 (싱글톤)
+    assert_eq!(outer2.list[0].val.receiver().value(), 50);
 }

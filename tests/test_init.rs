@@ -16,30 +16,39 @@ model! {
 
 #[test]
 fn test_init_model() {
-    let m = InitModel::init(|m| {
+    // init_singleton() now returns Self (the inner struct), not Arc<Self>
+    // And it shares state because it's a singleton.
+    let m = InitModel::init_singleton(|m| {
         m.val.sender().send(42);
     });
     
     // Check if initialization worked
     assert_eq!(m.val.receiver().value(), 42);
     
-    // Check if it's a valid independent instance
-    let m2 = InitModel::init(|m| { m.val.sender().send(100); });
+    // Check if it's a SINGLETON (shared state)
+    let m2 = InitModel::init_singleton(|m| { m.val.sender().send(100); });
     assert_eq!(m2.val.receiver().value(), 100);
-    assert_ne!(m.val.receiver().value(), m2.val.receiver().value());
+    
+    // Since it's a singleton, m1 should also see the change
+    assert_eq!(m.val.receiver().value(), 100);
 }
 
 #[test]
 fn test_init_array_model() {
-    let models = InitArrayModel::init(|ms| {
-        assert_eq!(ms.len(), 5);
-        for (i, m) in ms.iter().enumerate() {
-            m.val.sender().send(i as i32 * 10);
-        }
+    // Array Model: init takes an index
+    let m0 = InitArrayModel::init_singleton(0, |m| {
+        m.val.sender().send(10);
     });
 
-    assert_eq!(models.len(), 5);
-    for (i, m) in models.iter().enumerate() {
-         assert_eq!(m.val.receiver().value(), i as i32 * 10);
-    }
+    let m1 = InitArrayModel::init_singleton(1, |m| {
+        m.val.sender().send(20);
+    });
+
+    assert_eq!(m0.val.receiver().value(), 10);
+    assert_eq!(m1.val.receiver().value(), 20);
+    
+    // Verify singleton behavior across calls
+    let m0_again = InitArrayModel::clone_singleton(); // Returns Arc<[Self]>
+    assert_eq!(m0_again[0].val.receiver().value(), 10);
+    assert_eq!(m0_again[1].val.receiver().value(), 20);
 }

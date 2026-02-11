@@ -26,18 +26,17 @@ model! {
 }
 
 #[test]
-fn test_public_model_new() {
-    // Should NOT have clone_singleton (compilation error if called, we can't easily test "does not compile" here without trybuild)
-    // But should have new()
-    let m1 = PublicModel::new();
-    let m2 = PublicModel::new();
+fn test_public_model_singleton() {
+    // Should have clone_singleton now, just like private models.
+    let m1 = PublicModel::clone_singleton();
+    let m2 = PublicModel::clone_singleton();
     
-    // Independent instances
+    // Singleton instances share state
     m1.val.sender().send(100);
-    m2.val.sender().send(200);
+    assert_eq!(m2.val.receiver().value(), 100);
     
-    assert_eq!(m1.val.receiver().value(), 100);
-    assert_eq!(m2.val.receiver().value(), 200);
+    m2.val.sender().send(200);
+    assert_eq!(m1.val.receiver().value(), 200);
 }
 
 
