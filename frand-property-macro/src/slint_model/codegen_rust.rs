@@ -58,7 +58,7 @@ pub fn generate(input: &SlintModel, doc_comment: TokenStream) -> TokenStream {
         quote! { .field(stringify!(#name), &self.#name) }
     }).collect();
 
-    // Unified Singleton Pattern
+    // 통합 싱글톤 패턴
     quote! {
         static #instances_ident: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<std::any::TypeId, Box<dyn std::any::Any + Send + Sync>>>> = std::sync::OnceLock::new();
 

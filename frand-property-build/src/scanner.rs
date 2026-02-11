@@ -30,23 +30,16 @@ pub fn generate_slint_files(src_dir: impl AsRef<Path>, output_dir: impl AsRef<Pa
         fs::create_dir_all(output_dir)?;
     }
 
-    let index_path = output_dir.join("index.slint");
-    if index_path.exists() {
-        fs::OpenOptions::new().append(true).open(&index_path)?;
-    } else {
-        fs::File::create(&index_path)?;
-    }
-
     for entry in WalkDir::new(src_dir) {
         let entry = entry?;
         let path = entry.path();
         if path.extension().map(|e| e == "rs").unwrap_or(false) {
             let content = match fs::read_to_string(path) {
                 Ok(c) => c,
-                Err(_) => continue, // Skip files we cannot read
+                Err(_) => continue, // 읽을 수 없는 파일 건너뛰기
             };
             
-            // Parse full file
+            // 전체 파일 파싱
             if let Ok(file) = parse_file(&content) {
                 let mut visitor = SlintModelVisitor { models: Vec::new() };
                 visitor.visit_file(&file);

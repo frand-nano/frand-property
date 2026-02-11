@@ -4,6 +4,7 @@ use arraystring::ArrayString;
 use arraystring::typenum::{U20, U41};
 
 slint_model! {
+    export to "components/repeater";
     pub RepeaterModel: RepeaterGlobal {
         in text: ArrayString<U20>,
         out repeated: ArrayString<U41>,

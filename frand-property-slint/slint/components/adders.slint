@@ -1,5 +1,21 @@
 import { Button, VerticalBox, HorizontalBox } from "std-widgets.slint";
-import { AddersGlobalComponent } from "../global/adders.slint";
+
+export struct AddersGlobalData {
+    values: [int],
+    sum: int,
+}
+
+export global AddersGlobal {
+    in-out property <[AddersGlobalData]> data: [{}];
+}
+
+export component AddersGlobalComponent inherits Rectangle {
+    in-out property <int> global-data-length: AddersGlobal.data.length;
+    in-out property <int> global-data-index: 0;
+    in-out property <[int]> global-values: AddersGlobal.data[global-data-index].values;
+    changed global-values => { AddersGlobal.data[global-data-index].values = self.global-values; }
+    out property <int> global-sum: AddersGlobal.data[global-data-index].sum;
+}
 
 export component Adders inherits AddersGlobalComponent {
     VerticalBox {

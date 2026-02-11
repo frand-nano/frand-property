@@ -8,6 +8,7 @@ const MODEL_LEN: usize = 2;
 const PROP_LEN: usize = 3;
 
 slint_model! {
+    export to "components/adders";
     pub AddersModel[MODEL_LEN]: AddersGlobal {
         in values: i32[PROP_LEN],
         out sum: i32,

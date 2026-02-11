@@ -1,4 +1,7 @@
 
 pub mod parser;
 pub mod generator;
-pub mod scanner;
+
+mod scanner;
+
+pub use scanner::*;

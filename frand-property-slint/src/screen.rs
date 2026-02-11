@@ -3,6 +3,7 @@ use crate::{MainWindow, ScreenGlobal};
 use crate::ScreenVariant;
 
 slint_model! {
+    export to "screen/screen";
     pub ScreenModel: ScreenGlobal {
         out current_screen: ScreenVariant,
         in confirm_start: (),

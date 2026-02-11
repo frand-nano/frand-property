@@ -2,6 +2,7 @@ use frand_property::slint_model;
 use crate::{AdderGlobal, MainWindow};
 
 slint_model! {
+    export to "components/adder";
     pub AdderModel: AdderGlobal {
         in x: i32,
         in y: i32,

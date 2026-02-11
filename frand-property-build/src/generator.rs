@@ -18,10 +18,6 @@ pub fn generate_slint_doc(input: &SlintModel) -> String {
 }
 
 pub fn generate_slint_file(input: &SlintModel, output_dir: &Path) -> anyhow::Result<()> {
-    if !output_dir.exists() {
-        fs::create_dir_all(output_dir)?;
-    }
-
     let (struct_name, struct_body, global_name, global_body, component_name, component_body) = generate_code_components(input);
 
     let global_name_str = input.type_name.to_string();
@@ -32,8 +28,21 @@ pub fn generate_slint_file(input: &SlintModel, output_dir: &Path) -> anyhow::Res
     };
 
     let file_stem = name_for_file.to_snake_case();
-    let file_name = format!("{}.slint", file_stem);
-    let target_path = output_dir.join(&file_name);
+    
+    // output_dir 기준 타겟 경로 결정
+    let file_rel_path = if let Some(path) = &input.export_path {
+        Path::new(path).with_extension("slint")
+    } else {
+        Path::new("global").join(format!("{}.slint", file_stem))
+    };
+    
+    let target_path = output_dir.join(&file_rel_path);
+    
+    if let Some(parent) = target_path.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent)?;
+        }
+    }
 
     let original_content = if target_path.exists() {
         fs::read_to_string(&target_path)?
@@ -61,15 +70,31 @@ pub fn generate_slint_file(input: &SlintModel, output_dir: &Path) -> anyhow::Res
         fs::write(&target_path, content)?;
     }
     
-    // Update index.slint
-    update_index_slint(output_dir, &global_name, &file_name)?;
+    // global 디렉토리의 index.slint 업데이트
+    update_index_slint(output_dir, &global_name, &file_rel_path)?;
 
     Ok(())
 }
 
-fn update_index_slint(output_dir: &Path, global_name: &str, file_name: &str) -> anyhow::Result<()> {
-    let index_path = output_dir.join("index.slint");
-    let export_stmt = format!("export {{ {} }} from \"{}\";", global_name, file_name);
+fn update_index_slint(output_dir: &Path, global_name: &str, file_rel_path: &Path) -> anyhow::Result<()> {
+    let index_dir = output_dir.join("global");
+    if !index_dir.exists() {
+        fs::create_dir_all(&index_dir)?;
+    }
+    let index_path = index_dir.join("index.slint");
+    
+    // index.slint(global/ 위치) 기준 import 경로 계산
+    // slint는 forward slash를 사용한다고 가정
+    let path_str = file_rel_path.to_string_lossy().replace("\\", "/");
+    let import_path = if path_str.starts_with("global/") {
+        // 파일이 global/에 있으므로 형제 경로
+        format!("./{}", &path_str["global/".len()..])
+    } else {
+        // 파일이 다른 곳에 있으므로 global/에서 한 단계 위로 이동
+        format!("../{}", path_str)
+    };
+    
+    let export_stmt = format!("export {{ {} }} from \"{}\";", global_name, import_path);
     
     let mut index_content = if index_path.exists() {
         fs::read_to_string(&index_path)?

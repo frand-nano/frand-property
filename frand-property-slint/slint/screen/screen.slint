@@ -1,6 +1,30 @@
 import { StartScreen } from "start.slint";
 import { PayScreen } from "pay.slint";
-import { ScreenGlobalComponent, ScreenVariant } from "../global/screen.slint";
+
+export enum ScreenVariant {
+    Start,
+    Pay
+}
+
+export struct ScreenGlobalData {
+    current-screen: ScreenVariant,
+}
+
+export global ScreenGlobal {
+    in-out property <[ScreenGlobalData]> data: [{}];
+    callback confirm-start(int);
+    callback cancel-pay(int);
+}
+
+export component ScreenGlobalComponent inherits Rectangle {
+    in-out property <int> global-data-length: ScreenGlobal.data.length;
+    in-out property <int> global-data-index: 0;
+    out property <ScreenVariant> global-current-screen: ScreenGlobal.data[global-data-index].current-screen;
+    callback global-confirm-start;
+    global-confirm-start => { ScreenGlobal.confirm-start(global-data-index); }
+    callback global-cancel-pay;
+    global-cancel-pay => { ScreenGlobal.cancel-pay(global-data-index); }
+}
 
 export component Screen inherits ScreenGlobalComponent {
     if root.global-current-screen == ScreenVariant.Start: StartScreen {

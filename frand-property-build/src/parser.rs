@@ -77,7 +77,7 @@ impl Parse for ModelField {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let vis: Visibility = input.parse()?;
         
-        // check for 'model' keyword
+        // 'model' 키워드 확인
         let is_model = if input.peek(Ident) {
             let fork = input.fork();
             let ident: Ident = fork.parse()?;
@@ -116,7 +116,13 @@ impl Parse for ModelField {
     }
 }
 
+mod kw {
+    syn::custom_keyword!(export);
+    syn::custom_keyword!(to);
+}
+
 pub struct SlintModel {
+    pub export_path: Option<String>,
     pub vis: Visibility,
     pub model_name: Ident,
     pub len: Option<proc_macro2::TokenStream>,
@@ -137,6 +143,16 @@ pub struct SlintModelField {
 
 impl Parse for SlintModel {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let export_path = if input.peek(kw::export) {
+            input.parse::<kw::export>()?;
+            input.parse::<kw::to>()?;
+            let path: syn::LitStr = input.parse()?;
+            input.parse::<Token![;]>()?;
+            Some(path.value())
+        } else {
+            None
+        };
+
         let vis: Visibility = input.parse()?;
         
         let model_name: Ident = input.parse()?;
@@ -151,6 +167,7 @@ impl Parse for SlintModel {
 
         let content;
         Ok(SlintModel {
+            export_path,
             vis,
             model_name,
             len,
