@@ -135,14 +135,17 @@ pub fn generate_code_components(input: &SlintModel) -> (String, String, String, 
         let kebab_name = field.name.to_string().replace("_", "-");
         let slint_type = rust_type_to_slint_type(&field.ty);
 
-        if is_unit_ty(&field.ty) {
-             // 유닛 타입 -> 콜백
-             // Global: callback name(int); 
-             global_fields.push(format!("    callback {kebab_name}(int);"));
-             
-             // Component: callback name; name => { Global.name(global-data-index); }
-             component_fields.push(format!("    callback global-{kebab_name};"));
-             component_fields.push(format!("    global-{kebab_name} => {{ {global_name}.{kebab_name}(global-data-index); }}"));
+        if is_unit_ty(&field.ty) || field.direction == parser::Direction::Callback {
+             // 콜백 타입 처리
+             if is_unit_ty(&field.ty) {
+                 global_fields.push(format!("    callback {kebab_name}(int);"));
+                 component_fields.push(format!("    callback global-{kebab_name};"));
+                 component_fields.push(format!("    global-{kebab_name} => {{ {global_name}.{kebab_name}(global-data-index); }}"));
+             } else {
+                 global_fields.push(format!("    callback {kebab_name}(int, {slint_type});"));
+                 component_fields.push(format!("    callback global-{kebab_name}({slint_type});"));
+                 component_fields.push(format!("    global-{kebab_name}(val) => {{ {global_name}.{kebab_name}(global-data-index, val); }}"));
+             }
         } else {
              struct_fields.push(
                 format!("    {kebab_name}: {slint_type},")
@@ -162,6 +165,7 @@ pub fn generate_code_components(input: &SlintModel) -> (String, String, String, 
                     component_fields.push(format!("    out property <{slint_type}> global-{kebab_name}: {global_name}.data[global-data-index].{kebab_name};"));
                 }
                 parser::Direction::Model => {}
+                parser::Direction::Callback => {}
             }
         }
     }

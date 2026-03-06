@@ -26,6 +26,7 @@ pub enum Direction {
     In,
     Out,
     Model,
+    Callback,
 }
 
 // Model 구조체 정의
@@ -196,11 +197,14 @@ impl Parse for SlintModelField {
              } else if ident == "model" {
                  input.parse::<Ident>()?;
                  Direction::Model
+             } else if ident == "callback" {
+                 input.parse::<Ident>()?;
+                 Direction::Callback
              } else {
-                 return Err(syn::Error::new(ident.span(), "expected `in`, `out`, `model`"));
+                 return Err(syn::Error::new(ident.span(), "expected `in`, `out`, `model`, `callback`"));
              }
         } else {
-             return Err(input.error("expected `in`, `out`, `model`"));
+             return Err(input.error("expected `in`, `out`, `model`, `callback`"));
         };
 
         let name = input.parse()?;

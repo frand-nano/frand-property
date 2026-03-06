@@ -177,7 +177,7 @@ fn generate_logic_impl(
 ) -> TokenStream {
     let fields: Vec<_> = input.fields.iter().collect();
     let (data_fields, signal_fields): (Vec<_>, Vec<_>) = fields.into_iter()
-        .partition(|f| !is_unit_ty(&f.ty));
+        .partition(|f| !is_unit_ty(&f.ty) && f.direction != Direction::Callback);
 
     let struct_init_ids = generate_struct_init_fields(input);
     let mut loop_body = Vec::new();
@@ -378,21 +378,42 @@ fn process_signal_field(
     let f_receivers = format_ident!("{}_receivers", f_name);
     let on_ident = format_ident!("on_{}", f_name);
 
+    if f.direction == Direction::In {
+        proc_macro_error::abort!(f_name, "`()` (unit type) cannot be used with `in` direction. Use `callback` instead.");
+    }
+
+    let resolved_ty = resolve_type(&f.ty);
+    let is_unit = is_unit_ty(&f.ty);
+
+    let callback_registration = if is_unit {
+        quote! {
+            component.global::<#global_type_name>().#on_ident(move |idx| {
+                if let Some(s) = senders_clone.get(idx as usize) {
+                    s.notify();
+                }
+            });
+        }
+    } else {
+        quote! {
+            component.global::<#global_type_name>().#on_ident(move |idx, val| {
+                if let Some(s) = senders_clone.get(idx as usize) {
+                    s.notify_with(val.into());
+                }
+            });
+        }
+    };
+
     let signal_init = quote! {
-        let mut #f_senders = Vec::with_capacity(#array_len_tokens);
-        let mut #f_receivers = Vec::with_capacity(#array_len_tokens);
+        let mut #f_senders: Vec<frand_property::Sender<#resolved_ty, slint::Weak<C>>> = Vec::with_capacity(#array_len_tokens);
+        let mut #f_receivers: Vec<frand_property::Receiver<#resolved_ty>> = Vec::with_capacity(#array_len_tokens);
         for _ in 0..#array_len_tokens {
-             let prop = frand_property::Property::new(weak.clone(), Default::default(), |_,_| {});
+             let prop = frand_property::Property::<#resolved_ty, slint::Weak<C>>::new(weak.clone(), <#resolved_ty as Default>::default(), |_,_| {});
              #f_senders.push(prop.sender().clone());
              #f_receivers.push(prop.receiver().clone());
         }
 
         let senders_clone = #f_senders.clone();
-        component.global::<#global_type_name>().#on_ident(move |idx| {
-            if let Some(s) = senders_clone.get(idx as usize) {
-                s.notify();
-            }
-        });
+        #callback_registration
     };
 
     let loop_body = quote! {
