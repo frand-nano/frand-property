@@ -6,7 +6,7 @@ use syn::Type;
 use heck::ToSnakeCase;
 
 pub fn generate_slint_doc(input: &SlintModel) -> String {
-    let (struct_name, struct_body, global_name, global_body, component_name, component_body) = generate_code_components(input);
+    let (struct_name, struct_body, global_name, global_body, component_name, component_body) = generate_code_components(input, None);
 
     let struct_def = format!("export struct {} {{\n{}\n}}", struct_name, struct_body);
     let global_def = format!("export global {} {{\n{}\n}}", global_name, global_body);
@@ -18,8 +18,6 @@ pub fn generate_slint_doc(input: &SlintModel) -> String {
 }
 
 pub fn generate_slint_file(input: &SlintModel, output_dir: &Path) -> anyhow::Result<()> {
-    let (struct_name, struct_body, global_name, global_body, component_name, component_body) = generate_code_components(input);
-
     let global_name_str = input.type_name.to_string();
     let name_for_file = if let Some(stripped) = global_name_str.strip_suffix("Global") {
         stripped
@@ -50,6 +48,8 @@ pub fn generate_slint_file(input: &SlintModel, output_dir: &Path) -> anyhow::Res
         String::new()
     };
     let mut content = original_content.clone();
+
+    let (struct_name, struct_body, global_name, global_body, component_name, component_body) = generate_code_components(input, Some(&original_content));
 
     let struct_header_pattern = format!("export struct {}", struct_name);
     content = replace_or_append_block(content, &struct_header_pattern, &struct_body, || {
@@ -114,11 +114,28 @@ fn update_index_slint(output_dir: &Path, global_name: &str, file_rel_path: &Path
     Ok(())
 }
 
-pub fn generate_code_components(input: &SlintModel) -> (String, String, String, String, String, String) {
+pub fn generate_code_components(input: &SlintModel, original_content: Option<&str>) -> (String, String, String, String, String, String) {
     let global_name = input.type_name.to_string();
     let struct_name = format!("{}Data", input.type_name);
 
-    let global_data = format!("    in-out property <[{struct_name}]> data: [{{}}];");
+    let mut data_init = "[{}]".to_string();
+    if let Some(content) = original_content {
+        let global_header_pattern = format!("export global {}", global_name);
+        if let Some((start, end)) = find_block_range(content, &global_header_pattern) {
+            let block_content = &content[start..end];
+            if let Some(data_idx) = block_content.find("data:") {
+                let after_data = &block_content[data_idx + 5..];
+                if let Some(semi_idx) = after_data.find(';') {
+                    let maybe_array = after_data[..semi_idx].trim();
+                    if maybe_array.starts_with('[') && maybe_array.ends_with(']') {
+                        data_init = maybe_array.to_string();
+                    }
+                }
+            }
+        }
+    }
+
+    let global_data = format!("    in-out property <[{struct_name}]> data: {data_init};");
     
     let mut struct_fields = Vec::new();
     let mut global_fields = vec![global_data];

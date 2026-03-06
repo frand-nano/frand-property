@@ -176,6 +176,8 @@ fn generate_logic_impl(
     input: &SlintModel
 ) -> TokenStream {
     let fields: Vec<_> = input.fields.iter().collect();
+    let struct_data_type = format_ident!("{}Data", global_type_name);
+    let struct_data_type_path = quote! { crate::#struct_data_type };
     let (data_fields, signal_fields): (Vec<_>, Vec<_>) = fields.into_iter()
         .partition(|f| !is_unit_ty(&f.ty) && f.direction != Direction::Callback);
 
@@ -216,10 +218,11 @@ fn generate_logic_impl(
             });
             
             if crate::common::is_array_string_type(&f.ty) {
+                let resolved_ty = resolve_type(&f.ty);
                 scalar_diff_checks.push(quote! {
                     if new_data.#f_name != old_data.#f_name {
                         if let Some(sender) = #vec_name.get(idx) {
-                             if let Ok(val) = ArrayString::try_from_str(new_data.#f_name.as_str()) {
+                             if let Ok(val) = <#resolved_ty>::try_from_str(new_data.#f_name.as_str()) {
                                  sender.send(val);
                              }
                         }
@@ -265,7 +268,7 @@ fn generate_logic_impl(
         // 시그널 필드 설정 (배열)
         #(#signal_init_block)*
 
-        let template_data = component.global::<#global_type_name>().get_data().row_data(0).expect("Global data should have at least 1 element from Slint initialization");
+        let template_data = <#struct_data_type_path as Default>::default();
 
         for i in 0..#array_len_tokens {
             #(#loop_body)*
