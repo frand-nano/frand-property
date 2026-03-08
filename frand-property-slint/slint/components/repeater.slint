@@ -10,7 +10,7 @@ export global RepeaterGlobal {
 }
 
 export component RepeaterGlobalComponent inherits Rectangle {
-    in-out property <int> global-data-length: RepeaterGlobal.data.length;
+    out property <int> global-data-length: RepeaterGlobal.data.length;
     in-out property <int> global-data-index: 0;
     in-out property <string> global-text: RepeaterGlobal.data[global-data-index].text;
     changed global-text => { RepeaterGlobal.data[global-data-index].text = self.global-text; }

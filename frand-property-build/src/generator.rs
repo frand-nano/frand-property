@@ -29,7 +29,7 @@ pub fn generate_slint_file(input: &SlintModel, output_dir: &Path) -> anyhow::Res
     
     // output_dir 기준 타겟 경로 결정
     let file_rel_path = if let Some(path) = &input.export_path {
-        Path::new(path).with_extension("slint")
+        Path::new(path).to_path_buf()
     } else {
         Path::new("global").join(format!("{}.slint", file_stem))
     };
@@ -143,7 +143,7 @@ pub fn generate_code_components(input: &SlintModel, original_content: Option<&st
     let mut component_fields = Vec::new();
 
     // 기본 길이 프로퍼티 추가
-    component_fields.push(format!("    in-out property <int> global-data-length: {global_name}.data.length;"));
+    component_fields.push(format!("    out property <int> global-data-length: {global_name}.data.length;"));
     
     // 기본 인덱스 프로퍼티 추가
     component_fields.push("    in-out property <int> global-data-index: 0;".to_string());

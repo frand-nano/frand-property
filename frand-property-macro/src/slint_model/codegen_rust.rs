@@ -483,7 +483,7 @@ fn process_data_field(
                                  let global = c.global::<#global_type_name>();
                                  let model = global.get_data();
                                  if let Some(data) = model.row_data(i) {
-                                     data.#f_name.set_row_data(j, v);
+                                     data.#f_name.set_row_data(j, v.into());
                                  }
                              }).unwrap();
                          }
@@ -494,7 +494,7 @@ fn process_data_field(
             };
             let struct_init = quote! { #f_name };
             let slint_assignment = quote! {
-                slint_row_data.#f_name = slint::ModelRc::<#resolved_elem_ty>::new(std::rc::Rc::new(slint::VecModel::from(
+                slint_row_data.#f_name = slint::ModelRc::new(std::rc::Rc::new(slint::VecModel::from(
                     #vec_init
                 )));
             };

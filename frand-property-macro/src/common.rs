@@ -58,9 +58,9 @@ pub fn is_unit_ty(ty: &Type) -> bool {
 pub fn generate_vec_init_tokens(len: impl quote::ToTokens, elem_ty: impl quote::ToTokens) -> TokenStream {
     quote! {
         {
-            let mut v: std::vec::Vec<#elem_ty> = std::vec::Vec::with_capacity(#len);
+            let mut v = std::vec::Vec::with_capacity(#len);
             for _ in 0..#len {
-                v.push(<#elem_ty as Default>::default());
+                v.push(<#elem_ty as Default>::default().into());
             }
             v
         }

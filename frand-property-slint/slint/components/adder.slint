@@ -11,7 +11,7 @@ export global AdderGlobal {
 }
 
 export component AdderGlobalComponent inherits Rectangle {
-    in-out property <int> global-data-length: AdderGlobal.data.length;
+    out property <int> global-data-length: AdderGlobal.data.length;
     in-out property <int> global-data-index: 0;
     in-out property <int> global-x: AdderGlobal.data[global-data-index].x;
     changed global-x => { AdderGlobal.data[global-data-index].x = self.global-x; }
