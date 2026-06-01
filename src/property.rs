@@ -223,6 +223,24 @@ impl<T, C> Sender<T, C> {
     pub fn borrow(&self) -> watch::Ref<'_, T> {
         self.receiver.borrow()
     }
+
+    /// 컴포넌트 타입 `C`를 지운 `Sender<T>`로 변환한다.
+    ///
+    /// `component`와 `set`을 클로저에 캡처하므로 송신 시의 부작용은 그대로 유지되고,
+    /// watch 채널을 새로 만들지 않고 이전하므로 Pair Ownership도 보존된다.
+    pub fn into_untyped(self) -> Sender<T>
+    where
+        T: 'static,
+        C: Send + Sync + 'static,
+    {
+        let Sender { component, sender, receiver, set } = self;
+        Sender {
+            component: (),
+            sender,
+            receiver,
+            set: Arc::new(move |_: &(), v: T| set(&component, v)),
+        }
+    }
 }
 
 pub trait PropertyList<T, C> {

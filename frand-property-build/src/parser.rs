@@ -5,6 +5,9 @@ use syn::{
 };
 use quote::quote;
 
+/// 길이식(`[...]` 안의 표현식)을 파싱한다.
+///
+/// 허용 형태: 리터럴 `[5]`, 식별자 `[N]`, 역참조 `[*N]`, 필드 접근 체인 `[CONFIG.len]`.
 pub fn parse_len_expr(input: ParseStream) -> syn::Result<proc_macro2::TokenStream> {
     if input.peek(syn::Lit) {
         let lit: syn::Lit = input.parse()?;
@@ -15,9 +18,16 @@ pub fn parse_len_expr(input: ParseStream) -> syn::Result<proc_macro2::TokenStrea
         Ok(quote! { *#ident })
     } else if input.peek(Ident) {
         let ident: Ident = input.parse()?;
-        Ok(quote! { #ident })
+        // 필드 접근 체인 (CONFIG.len)
+        let mut tokens = quote! { #ident };
+        while input.peek(Token![.]) {
+            input.parse::<Token![.]>()?;
+            let field: Ident = input.parse()?;
+            tokens = quote! { #tokens.#field };
+        }
+        Ok(tokens)
     } else {
-        Err(input.error("Expected literal, identifier, or *identifier inside brackets"))
+        Err(input.error("Expected literal, identifier, *identifier, or field access (e.g. CONFIG.len) inside brackets"))
     }
 }
 

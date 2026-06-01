@@ -257,3 +257,38 @@ fn test_lazy_lock_len() {
     assert_eq!(models.len(), *LAZY_LEN);
     assert_eq!(models.len(), 4);
 }
+
+// 6. 필드 접근 길이식 (CONFIG.len)
+struct LenConfig {
+    len: usize,
+}
+
+static LEN_CONFIG: LenConfig = LenConfig { len: 2 };
+
+// 모델 레벨
+model! {
+    FieldLenModel[LEN_CONFIG.len] {
+        pub id: i32,
+    }
+}
+
+// 값 필드 레벨
+model! {
+    FieldLenArrayModel {
+        pub slots: i32[LEN_CONFIG.len],
+    }
+}
+
+#[test]
+fn test_field_access_len() {
+    let models = FieldLenModel::clone_singleton();
+    assert_eq!(models.len(), 2);
+    models[1].id.sender().send(42);
+    assert_eq!(models[1].id.receiver().value(), 42);
+
+    let model = FieldLenArrayModel::clone_singleton();
+    assert_eq!(model.slots.len(), 2);
+    model.slots[0].sender().send(7);
+    assert_eq!(model.slots[0].receiver().value(), 7);
+    assert_eq!(model.slots[1].receiver().value(), 0);
+}
